@@ -2,7 +2,7 @@
 
 # SlipSurfaceIQ Settle
 
-**Settlement analysis of shallow foundations and embankments with a desktop interface — version 2026.1.0**
+**Settlement analysis of shallow foundations and embankments with a desktop interface — version 2026.0.0**
 
 [![CI](https://github.com/hdaltuntas/SlipSurfaceIQ-Settle/actions/workflows/ci.yml/badge.svg)](https://github.com/hdaltuntas/SlipSurfaceIQ-Settle/actions/workflows/ci.yml)
 
