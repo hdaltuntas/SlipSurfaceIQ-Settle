@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SlipSurfaceIQ Settle
+Comment=Settlement analysis of shallow foundations and embankments
+Exec=/opt/slipsurface-iq-settle/slipsurface-settle %f
+Icon=slipsurface-iq-settle
+Terminal=false
+Categories=Science;Engineering;
+MimeType=application/x-slipsurface-settle;
+StartupNotify=true
