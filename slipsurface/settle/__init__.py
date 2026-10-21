@@ -36,7 +36,7 @@ Package layout
 Run it:  slipsurface-settle            (or  python -m slipsurface.settle)
 """
 
-__version__ = "2026.1.0"
+__version__ = "2026.0.0"
 
 APP_NAME = "SlipSurfaceIQ Settle"
 ORG = "SlipSurface"

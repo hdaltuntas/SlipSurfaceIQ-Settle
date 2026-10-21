@@ -1,4 +1,4 @@
-# SlipSurfaceIQ Settle 2026.1.0
+# SlipSurfaceIQ Settle 2026.0.0
 
 First release as a standalone desktop program.
 

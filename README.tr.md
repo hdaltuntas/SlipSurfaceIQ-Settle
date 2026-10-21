@@ -2,7 +2,7 @@
 
 # SlipSurfaceIQ Settle
 
-**Sığ temellerin ve dolguların oturma analizi, masaüstü arayüzüyle — sürüm 2026.1.0**
+**Sığ temellerin ve dolguların oturma analizi, masaüstü arayüzüyle — sürüm 2026.0.0**
 
 [![CI](https://github.com/hdaltuntas/SlipSurfaceIQ-Settle/actions/workflows/ci.yml/badge.svg)](https://github.com/hdaltuntas/SlipSurfaceIQ-Settle/actions/workflows/ci.yml)
 
