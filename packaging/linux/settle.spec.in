@@ -1,0 +1,36 @@
+Name:           slipsurface-iq-settle
+Version:        @VERSION@
+Release:        1%{?dist}
+Summary:        Settlement analysis of shallow foundations and embankments
+License:        AGPL-3.0-or-later
+URL:            https://github.com/hdaltuntas/SlipSurfaceIQ-Settle
+Source0:        payload.tar.gz
+BuildArch:      x86_64
+AutoReqProv:    no
+Requires:       @REQUIRES@
+
+# Preserve the already linked, tested PyInstaller runtime and bundled libraries.
+%global debug_package %{nil}
+%global __os_install_post %{nil}
+
+%description
+SlipSurfaceIQ Settle is a desktop program for the settlement analysis of shallow
+foundations and embankments: stresses, immediate, consolidation and secondary
+settlement, consolidation time and reliability studies. Python, Qt and the
+scientific runtime are bundled.
+
+%prep
+%setup -q -n payload
+
+%build
+
+%install
+mkdir -p %{buildroot}
+cp -a . %{buildroot}/
+
+%files
+/opt/slipsurface-iq-settle
+/usr/bin/slipsurface-settle
+/usr/share/applications/slipsurface-settle.desktop
+/usr/share/icons/hicolor/256x256/apps/slipsurface-iq-settle.png
+%license /usr/share/licenses/slipsurface-iq-settle

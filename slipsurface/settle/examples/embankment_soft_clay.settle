@@ -1,0 +1,108 @@
+{
+  "format": "slipsurface-settle",
+  "version": "0.1",
+  "project_info": {
+    "title": "Embankment on soft clay",
+    "analyst": ""
+  },
+  "foundation": {
+    "shape": "embankment",
+    "B": 8.0,
+    "L": 16.0,
+    "Df": 1.5,
+    "q": 100.0,
+    "net_pressure": true
+  },
+  "embankment": {
+    "crest": 12.0,
+    "height": 4.0,
+    "slope_left": 26.57,
+    "slope_right": 26.57,
+    "gamma": 20.0
+  },
+  "groundwater": {
+    "depth": 1.0,
+    "gamma_water": 9.81
+  },
+  "soil_profile": [
+    {
+      "name": "Desiccated crust",
+      "behaviour": "cohesive",
+      "drainage": "double",
+      "thickness": 1.5,
+      "gamma": 18.0,
+      "gamma_sat": 18.5,
+      "E": 12.0,
+      "nu": 0.5,
+      "Cc": 0.25,
+      "Cr": 0.04,
+      "e0": 0.9,
+      "OCR": 3.0,
+      "cv": 3.0,
+      "Calpha": 0.005
+    },
+    {
+      "name": "Soft clay",
+      "behaviour": "cohesive",
+      "drainage": "double",
+      "thickness": 8.0,
+      "gamma": 16.5,
+      "gamma_sat": 17.0,
+      "E": 4.0,
+      "nu": 0.5,
+      "Cc": 0.45,
+      "Cr": 0.06,
+      "e0": 1.4,
+      "OCR": 1.2,
+      "cv": 1.2,
+      "Calpha": 0.015
+    },
+    {
+      "name": "Dense sand",
+      "behaviour": "granular",
+      "drainage": "double",
+      "thickness": 8.0,
+      "gamma": 19.5,
+      "gamma_sat": 21.0,
+      "E": 60.0,
+      "nu": 0.3,
+      "Cc": 0.0,
+      "Cr": 0.0,
+      "e0": 0.6,
+      "OCR": 1.0,
+      "cv": 0.0,
+      "Calpha": 0.0
+    }
+  ],
+  "options": {
+    "stress_method": "boussinesq",
+    "immediate_method": "elastic",
+    "rigidity": "flexible",
+    "sublayer": 0.25,
+    "depth_ratio": 0.1,
+    "design_life": 50.0,
+    "creep": true
+  },
+  "criteria": {
+    "s_allow": 300.0,
+    "distortion_allow": 0.0
+  },
+  "study": {
+    "method": "oat",
+    "n": 500,
+    "seed": 0,
+    "variables": [
+      {
+        "path": "soil_profile.1.cv",
+        "label": "Soft clay · cv",
+        "mode": "range",
+        "dist": "normal",
+        "mean": 1.2,
+        "cov": 0.1,
+        "min": 0.5,
+        "max": 3.0,
+        "n_points": 7
+      }
+    ]
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "format": "slipsurface-settle",
+  "version": "0.1",
+  "project_info": {
+    "title": "Circular tank on layered clay",
+    "analyst": ""
+  },
+  "foundation": {
+    "shape": "circle",
+    "B": 20.0,
+    "L": 16.0,
+    "Df": 0.5,
+    "q": 120.0,
+    "net_pressure": true
+  },
+  "embankment": {
+    "crest": 12.0,
+    "height": 4.0,
+    "slope_left": 26.57,
+    "slope_right": 26.57,
+    "gamma": 20.0
+  },
+  "groundwater": {
+    "depth": 1.5,
+    "gamma_water": 9.81
+  },
+  "soil_profile": [
+    {
+      "name": "Sandy fill",
+      "behaviour": "granular",
+      "drainage": "double",
+      "thickness": 2.0,
+      "gamma": 18.0,
+      "gamma_sat": 19.5,
+      "E": 15.0,
+      "nu": 0.3,
+      "Cc": 0.0,
+      "Cr": 0.0,
+      "e0": 0.6,
+      "OCR": 1.0,
+      "cv": 0.0,
+      "Calpha": 0.0
+    },
+    {
+      "name": "Soft silty clay",
+      "behaviour": "cohesive",
+      "drainage": "double",
+      "thickness": 5.0,
+      "gamma": 17.0,
+      "gamma_sat": 17.8,
+      "E": 5.0,
+      "nu": 0.5,
+      "Cc": 0.3,
+      "Cr": 0.05,
+      "e0": 1.0,
+      "OCR": 1.5,
+      "cv": 2.0,
+      "Calpha": 0.008
+    },
+    {
+      "name": "Firm clay",
+      "behaviour": "cohesive",
+      "drainage": "double",
+      "thickness": 7.0,
+      "gamma": 18.5,
+      "gamma_sat": 19.0,
+      "E": 12.0,
+      "nu": 0.5,
+      "Cc": 0.18,
+      "Cr": 0.03,
+      "e0": 0.75,
+      "OCR": 2.5,
+      "cv": 3.5,
+      "Calpha": 0.004
+    },
+    {
+      "name": "Dense gravel",
+      "behaviour": "granular",
+      "drainage": "double",
+      "thickness": 10.0,
+      "gamma": 20.0,
+      "gamma_sat": 21.5,
+      "E": 80.0,
+      "nu": 0.3,
+      "Cc": 0.0,
+      "Cr": 0.0,
+      "e0": 0.6,
+      "OCR": 1.0,
+      "cv": 0.0,
+      "Calpha": 0.0
+    }
+  ],
+  "options": {
+    "stress_method": "boussinesq",
+    "immediate_method": "elastic",
+    "rigidity": "flexible",
+    "sublayer": 0.25,
+    "depth_ratio": 0.1,
+    "design_life": 30.0,
+    "creep": true
+  },
+  "criteria": {
+    "s_allow": 200.0,
+    "distortion_allow": 300.0
+  },
+  "study": {
+    "method": "lhs",
+    "n": 500,
+    "seed": 0,
+    "variables": []
+  }
+}
