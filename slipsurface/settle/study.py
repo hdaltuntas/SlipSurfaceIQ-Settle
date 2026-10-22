@@ -54,6 +54,21 @@ LIMIT_STATES = [("ls_settlement", "s_total", "s_allow"), ("ls_distortion", "beta
 #: Soil inputs a study may vary, and the ones that only mean anything in clay
 SOIL_KEYS = ["thickness", "gamma", "gamma_sat", "E", "nu"]
 CLAY_KEYS = ["Cc", "Cr", "e0", "OCR", "cv", "Calpha"]
+#: The varied properties of a material, by its behaviour and description
+MATERIAL_KEYS = {
+    "granular": ["gamma", "gamma_sat", "E", "nu"],
+    "incompressible": ["gamma", "gamma_sat"],
+    "index": ["gamma", "gamma_sat", "E", "nu", "Cc", "Cr", "e0", "OCR", "cv", "Calpha"],
+    "mv": ["gamma", "gamma_sat", "E", "nu", "mv", "mv_ur", "OCR", "cv", "Calpha_eps"],
+}
+
+
+def material_keys(material: dict[str, Any]) -> list[str]:
+    behaviour = material.get("behaviour", "granular")
+    if behaviour == "cohesive":
+        return MATERIAL_KEYS["mv" if material.get("compression") == "mv" else "index"]
+    return MATERIAL_KEYS.get(behaviour, MATERIAL_KEYS["granular"])
+
 
 _NORMAL = NormalDist()
 
@@ -72,7 +87,18 @@ def available_variables(cfg: dict[str, Any]) -> list[tuple[str, str]]:
             out.append(("foundation.L", "foundation"))
         out.append(("foundation.Df", "foundation"))
     out.append(("groundwater.depth", "groundwater"))
-    for i, layer in enumerate(cfg.get("soil_profile", [])):
+    layers = cfg.get("soil_profile", [])
+    if cfg.get("materials") and any("material" in layer for layer in layers):
+        # the properties belong to the materials, the thickness to the layers
+        for i, layer in enumerate(layers):
+            out.append((f"soil_profile.{i}.thickness", str(layer.get("material", ""))))
+        used = {str(layer.get("material", "")) for layer in layers}
+        for i, material in enumerate(cfg["materials"]):
+            name = str(material.get("name", ""))
+            if name in used:
+                out += [(f"materials.{i}.{key}", name) for key in material_keys(material)]
+        return out
+    for i, layer in enumerate(layers):
         keys = SOIL_KEYS + (CLAY_KEYS if layer.get("behaviour") == "cohesive" else [])
         out += [(f"soil_profile.{i}.{key}", layer.get("name", f"layer {i + 1}")) for key in keys]
     return out
@@ -85,8 +111,16 @@ def pretty_label(cfg: dict[str, Any], path: str, L: dict[str, str]) -> str:
     if parts[0] == "soil_profile":
         index = int(parts[1])
         layers = cfg.get("soil_profile", [])
-        layer = layers[index].get("name", f"{index + 1}") if index < len(layers) else parts[1]
+        row = layers[index] if index < len(layers) else {}
+        if "material" in row:
+            return f"{index + 1}. {row.get('material', '')} · {name}"
+        layer = row.get("name", f"{index + 1}") if row else parts[1]
         return f"{layer} · {name}"
+    if parts[0] == "materials":
+        index = int(parts[1])
+        materials = cfg.get("materials", [])
+        material = materials[index].get("name", parts[1]) if index < len(materials) else parts[1]
+        return f"{material} · {name}"
     group = {
         "foundation": "grp_foundation",
         "groundwater": "grp_water",

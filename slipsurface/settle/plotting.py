@@ -111,6 +111,17 @@ class Plotter:
             return stress.strip(a.B, x, zb)
         return stress.circle(a.B / 2.0, abs(x), zb)
 
+    @staticmethod
+    def _layer_detail(layer) -> str:
+        """What the section labels a layer with, after its behaviour."""
+        if layer["behaviour"] == "incompressible":
+            return ""
+        if layer["behaviour"] == "cohesive" and layer["compression"] == "mv":
+            return f", mv = {layer['mv']:g} m²/MN"
+        if layer["E_MPa"] <= 0:
+            return ""
+        return f", E = {layer['E_MPa']:g} MPa"
+
     # ------------------------------------------------------------------ figures
     def _schematic(self, fig, th):
         a, res, L = self.a, self.res, self.L
@@ -131,7 +142,7 @@ class Plotter:
                     (-x_max, layer["top"]),
                     2 * x_max,
                     bottom - layer["top"],
-                    facecolor=fills[layer["behaviour"]],
+                    facecolor=layer.get("color") or fills[layer["behaviour"]],
                     edgecolor=th["border"],
                     lw=0.8,
                     alpha=0.55,
@@ -141,8 +152,8 @@ class Plotter:
             ax.text(
                 -x_max + 0.02 * x_max,
                 0.5 * (layer["top"] + bottom),
-                f"{layer['name']}\n{L['behaviour_' + layer['behaviour']]}, "
-                f"E = {layer['E_MPa']:g} MPa",
+                f"{layer['name']}\n{L['behaviour_' + layer['behaviour']]}"
+                + self._layer_detail(layer),
                 fontsize=7.5,
                 color=th["fg"],
                 va="center",

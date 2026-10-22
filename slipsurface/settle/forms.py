@@ -24,9 +24,12 @@ from typing import Any
 
 from .config import (
     BEHAVIOURS,
+    COMPRESSION,
     DEFAULT_CONFIG,
     DRAINAGE,
     IMMEDIATE_METHODS,
+    MATERIAL_COLORS,
+    MATERIAL_DEFAULT,
     RIGIDITY,
     SHAPES,
     STRESS_METHODS,
@@ -37,7 +40,8 @@ from .i18n import TRANSLATIONS
 FILE_FORMAT = "slipsurface-settle"
 # Project files saved before the product was renamed still open.
 READ_FORMATS = (FILE_FORMAT, "slipsurface-settle")
-FILE_VERSION = "0.1"
+# 0.2: materials, and layers that name one (0.1 carried the properties per layer)
+FILE_VERSION = "0.2"
 
 
 def _t(lang: str, key: str) -> str:
@@ -314,47 +318,103 @@ def study_groups(lang: str = "en") -> list[Group]:
 
 
 # --------------------------------------------------------------------------- #
-#  Tables: soil layers, study variables
+#  Materials, soil layers, study variables
 # --------------------------------------------------------------------------- #
 
-SOIL_NUMBERS = [
-    "thickness",
-    "gamma",
-    "gamma_sat",
-    "E",
-    "nu",
-    "Cc",
-    "Cr",
-    "e0",
-    "OCR",
-    "cv",
-    "Calpha",
+#: Where a material property applies: a behaviour, or a cohesive description
+GRANULAR, INDEX, MV, ROCK = "granular", "cohesive_index", "cohesive_mv", "incompressible"
+SOILS = (GRANULAR, INDEX, MV)
+CLAYS = (INDEX, MV)
+
+#: The numeric properties of a material, in the order the dialog shows them:
+#: (key, group, unit, decimals, min, max, step, applies to)
+MATERIAL_NUMBERS = [
+    ("gamma", "grp_mat_weight", "kN/m³", 2, 0.1, 40, 0.5, SOILS + (ROCK,)),
+    ("gamma_sat", "grp_mat_weight", "kN/m³", 2, 0.1, 40, 0.5, SOILS + (ROCK,)),
+    ("E", "grp_mat_elastic", "MPa", 2, 0, 1e5, 1, SOILS),
+    ("nu", "grp_mat_elastic", "", 3, 0, 0.5, 0.01, SOILS),
+    ("Cc", "grp_mat_cons", "", 4, 0, 10, 0.01, (INDEX,)),
+    ("Cr", "grp_mat_cons", "", 4, 0, 10, 0.01, (INDEX,)),
+    ("e0", "grp_mat_cons", "", 3, 0.01, 20, 0.05, (INDEX,)),
+    ("mv", "grp_mat_cons", "m²/MN", 4, 0, 100, 0.05, (MV,)),
+    ("mv_ur", "grp_mat_cons", "m²/MN", 4, 0, 100, 0.01, (MV,)),
+    ("OCR", "grp_mat_cons", "", 2, 1, 50, 0.1, CLAYS),
+    ("cv", "grp_mat_time", "m²/yr", 3, 0, 1e4, 0.1, CLAYS),
+    ("Calpha", "grp_mat_time", "", 4, 0, 1, 0.001, (INDEX,)),
+    ("Calpha_eps", "grp_mat_time", "", 5, 0, 1, 0.001, (MV,)),
 ]
+MATERIAL_KEYS = [row[0] for row in MATERIAL_NUMBERS]
 
 
-def soil_columns(lang: str = "en") -> list[dict]:
-    """Columns of the soil profile table."""
+def material_kind(material: dict) -> str:
+    """Which properties a material uses: granular, a clay by indices or by mv, or rock."""
+    behaviour = material.get("behaviour", "granular")
+    if behaviour == "cohesive":
+        return MV if material.get("compression") == "mv" else INDEX
+    return ROCK if behaviour == "incompressible" else GRANULAR
 
-    def number(key):
-        return {"key": key, "label": _t(lang, f"col_{key}"), "kind": "number"}
 
-    def select(key, prefix, values):
-        return {
-            "key": key,
-            "label": _t(lang, f"col_{key}"),
+def material_fields(lang: str = "en") -> list[dict]:
+    """The numeric properties of a material, labelled, with where they apply."""
+    out = []
+    for key, group, unit, dec, lo, hi, step, applies in MATERIAL_NUMBERS:
+        if unit == "m²/yr" and lang == "tr":
+            unit = "m²/yıl"
+        out.append(
+            {
+                "key": key,
+                "label": _t(lang, f"mat_{key}"),
+                "group": group,
+                "group_label": _t(lang, group),
+                "unit": unit,
+                "decimals": dec,
+                "min": lo,
+                "max": hi,
+                "step": step,
+                "applies": list(applies),
+                "default": MATERIAL_DEFAULT[key],
+            }
+        )
+    return out
+
+
+def material_choices(lang: str = "en") -> dict[str, list[tuple[str, str]]]:
+    """The two choice lists of a material: behaviour and consolidation description."""
+    return {
+        "behaviour": _choices(lang, "behaviour", BEHAVIOURS),
+        "compression": _choices(lang, "compression", COMPRESSION),
+    }
+
+
+def layer_columns(lang: str = "en", materials: list[str] | None = None) -> list[dict]:
+    """Columns of the soil profile table: material, thickness, drainage."""
+    return [
+        {
+            "key": "material",
+            "label": _t(lang, "col_material"),
             "kind": "select",
-            "options": [{"value": v, "label": _t(lang, f"{prefix}_{v}")} for v in values],
-        }
+            "options": [{"value": m, "label": m} for m in (materials or [])],
+        },
+        {"key": "thickness", "label": _t(lang, "col_thickness"), "kind": "number"},
+        {
+            "key": "drainage",
+            "label": _t(lang, "col_drainage"),
+            "kind": "select",
+            "options": [{"value": v, "label": _t(lang, f"drainage_{v}")} for v in DRAINAGE],
+        },
+    ]
 
-    return (
-        [
-            {"key": "name", "label": _t(lang, "col_name"), "kind": "text"},
-            number("thickness"),
-            select("behaviour", "behaviour", BEHAVIOURS),
-        ]
-        + [number(key) for key in SOIL_NUMBERS[1:]]
-        + [select("drainage", "drainage", DRAINAGE)]
-    )
+
+def new_material(existing: list[dict], lang: str = "en") -> dict:
+    """A fresh granular material with a name and a colour not yet in use."""
+    names = {str(m.get("name", "")) for m in existing}
+    base = _t(lang, "mat_new")
+    n = len(existing) + 1
+    while f"{base} {n}" in names:
+        n += 1
+    used = {str(m.get("color", "")).lower() for m in existing}
+    color = next((c for c in MATERIAL_COLORS if c.lower() not in used), MATERIAL_COLORS[0])
+    return {**MATERIAL_DEFAULT, "name": f"{base} {n}", "color": color}
 
 
 def study_columns(lang: str = "en") -> list[dict]:
@@ -386,6 +446,10 @@ def study_columns(lang: str = "en") -> list[dict]:
     ]
 
 
+def default_materials() -> list[dict]:
+    return [dict(material) for material in DEFAULT_CONFIG["materials"]]
+
+
 def default_soil_rows() -> list[dict]:
     return [dict(layer) for layer in DEFAULT_CONFIG["soil_profile"]]
 
@@ -402,8 +466,9 @@ def schema(lang: str = "en") -> dict:
         "foundation": {"groups": [g.to_dict() for g in foundation_groups(lang)]},
         "options": {"groups": [g.to_dict() for g in option_groups(lang)]},
         "study": {"groups": [g.to_dict() for g in study_groups(lang)]},
+        "materials": {"fields": material_fields(lang), "rows": default_materials()},
         "soil": {
-            "columns": soil_columns(lang),
+            "columns": layer_columns(lang, [m["name"] for m in default_materials()]),
             "rows": default_soil_rows(),
             "note": _t(lang, "soil_note"),
         },
@@ -421,6 +486,7 @@ def defaults(lang: str = "en") -> dict[str, Any]:
     for group in _all_groups(lang):
         for f in group.fields:
             values[f.key] = f.default
+    values["materials"] = default_materials()
     values["soil_profile"] = default_soil_rows()
     values["study_variables"] = []
     return values
@@ -450,9 +516,30 @@ def _s(values: dict, key: str, default: str = "", allowed: list[str] | None = No
     return text if allowed is None or text in allowed else default
 
 
+def read_materials(values: dict) -> list[dict]:
+    """The materials, every property filled in; names are unique and not empty."""
+    materials, names = [], set()
+    for row in values.get("materials") or []:
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get("name") or "").strip() or "Material"
+        while name in names:
+            name += "'"
+        names.add(name)
+        material = {
+            "name": name,
+            "color": str(row.get("color") or ""),
+            "behaviour": _s(row, "behaviour", "granular", BEHAVIOURS),
+            "compression": _s(row, "compression", "index", COMPRESSION),
+        }
+        for key in MATERIAL_KEYS:
+            material[key] = _f(row, key, MATERIAL_DEFAULT[key])
+        materials.append(material)
+    return materials
+
+
 def read_soil_profile(values: dict) -> list[dict]:
     """Soil layers from the table; rows without a usable thickness are dropped."""
-    base = DEFAULT_CONFIG["soil_profile"][0]
     layers = []
     for row in values.get("soil_profile") or []:
         try:
@@ -461,16 +548,73 @@ def read_soil_profile(values: dict) -> list[dict]:
             continue
         if thickness <= 0:
             continue
-        layer = {
-            "name": str(row.get("name") or "").strip() or "Layer",
-            "behaviour": _s(row, "behaviour", "granular", BEHAVIOURS),
-            "drainage": _s(row, "drainage", "double", DRAINAGE),
-        }
-        for key in SOIL_NUMBERS:
-            layer[key] = _f(row, key, base[key])
-        layer["thickness"] = thickness
-        layers.append(layer)
+        layers.append(
+            {
+                "material": str(row.get("material") or "").strip(),
+                "thickness": thickness,
+                "drainage": _s(row, "drainage", "double", DRAINAGE),
+            }
+        )
     return layers
+
+
+#: Colours of migrated materials, by behaviour: sandy, greenish-grey, stone
+BEHAVIOUR_COLORS = {
+    "granular": ["#E3C98F", "#D9B36C", "#C7B39A", "#D4C9A8"],
+    "cohesive": ["#A7B8A0", "#8FA88A", "#9DB4CC", "#A8A1C4"],
+    "incompressible": ["#B9B4AE", "#C9A0A0"],
+}
+
+
+def _colour_for(behaviour: str, materials: list[dict]) -> str:
+    """The next unused colour of a behaviour's family."""
+    family = BEHAVIOUR_COLORS.get(behaviour, MATERIAL_COLORS)
+    used = {str(m.get("color", "")).lower() for m in materials}
+    return next((c for c in family if c.lower() not in used), family[len(materials) % len(family)])
+
+
+def migrate_layers(cfg: dict) -> tuple[list[dict], list[dict], dict[int, int]]:
+    """Materials and layer rows from a 2026.0.0 profile, whose layers carried
+    their properties themselves: each distinct layer becomes a material.
+
+    Returns the materials, the rows and, per layer, the index of its material
+    (to carry study variables over).
+    """
+    materials: list[dict] = []
+    rows: list[dict] = []
+    index_of: dict[int, int] = {}
+    for i, layer in enumerate(cfg.get("soil_profile") or []):
+        if not isinstance(layer, dict):
+            continue
+        props = {**MATERIAL_DEFAULT, **{k: v for k, v in layer.items() if k in MATERIAL_DEFAULT}}
+        props["name"] = str(layer.get("name") or "").strip() or f"Layer {i + 1}"
+        same = [
+            j
+            for j, m in enumerate(materials)
+            if all(m[k] == props[k] for k in MATERIAL_KEYS + ["behaviour"])
+            and m["name"].split(" (")[0] == props["name"]
+        ]
+        if same:
+            j = same[0]
+        else:
+            names = {m["name"] for m in materials}
+            base, n = props["name"], 2
+            while props["name"] in names:
+                props["name"] = f"{base} ({n})"
+                n += 1
+            if not props.get("color"):
+                props["color"] = _colour_for(props["behaviour"], materials)
+            materials.append(props)
+            j = len(materials) - 1
+        index_of[i] = j
+        rows.append(
+            {
+                "material": materials[j]["name"],
+                "thickness": layer.get("thickness", 0.0),
+                "drainage": layer.get("drainage", "double"),
+            }
+        )
+    return materials, rows, index_of
 
 
 def to_config(values: dict) -> dict[str, Any]:
@@ -495,6 +639,7 @@ def to_config(values: dict) -> dict[str, Any]:
         "depth": _f(values, "water_depth", d["groundwater"]["depth"]),
         "gamma_water": _f(values, "gamma_water", d["groundwater"]["gamma_water"]),
     }
+    cfg["materials"] = read_materials(values)
     cfg["soil_profile"] = read_soil_profile(values)
     o = d["options"]
     cfg["options"] = {
@@ -546,17 +691,43 @@ def from_config(cfg: dict, base: dict | None = None) -> dict[str, Any]:
     for flat, section, key in _MAP:
         if key in (cfg.get(section) or {}):
             values[flat] = cfg[section][key]
-    if cfg.get("soil_profile"):
-        layer_defaults = DEFAULT_CONFIG["soil_profile"][0]
-        values["soil_profile"] = [
-            {**layer_defaults, **layer} for layer in cfg["soil_profile"] if isinstance(layer, dict)
+    index_of: dict[int, int] = {}
+    layers = [layer for layer in cfg.get("soil_profile") or [] if isinstance(layer, dict)]
+    if cfg.get("materials"):
+        values["materials"] = [
+            {**MATERIAL_DEFAULT, **m} for m in cfg["materials"] if isinstance(m, dict)
         ]
+        values["soil_profile"] = [
+            {
+                "material": layer.get("material", ""),
+                "thickness": layer.get("thickness", 0.0),
+                "drainage": layer.get("drainage", "double"),
+            }
+            for layer in layers
+        ]
+    elif layers:
+        values["materials"], values["soil_profile"], index_of = migrate_layers(cfg)
     study = cfg.get("study") or {}
     for src, dst in (("method", "study_method"), ("n", "study_n"), ("seed", "study_seed")):
         if src in study:
             values[dst] = study[src]
     if "variables" in study:
-        values["study_variables"] = [dict(spec) for spec in study["variables"]]
+        variables = []
+        for spec in study["variables"]:
+            spec = dict(spec)
+            parts = str(spec.get("path", "")).split(".")
+            # a 2026.0.0 layer property is now its material's property
+            if (
+                index_of
+                and len(parts) == 3
+                and parts[0] == "soil_profile"
+                and parts[2] != "thickness"
+                and parts[1].isdigit()
+                and int(parts[1]) in index_of
+            ):
+                spec["path"] = f"materials.{index_of[int(parts[1])]}.{parts[2]}"
+            variables.append(spec)
+        values["study_variables"] = variables
     return values
 
 

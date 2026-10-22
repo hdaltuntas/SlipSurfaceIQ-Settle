@@ -1,6 +1,6 @@
 {
   "format": "slipsurface-settle",
-  "version": "0.1",
+  "version": "0.2",
   "project_info": {
     "title": "Strip footing on sand",
     "analyst": ""
@@ -24,12 +24,12 @@
     "depth": 4.0,
     "gamma_water": 9.81
   },
-  "soil_profile": [
+  "materials": [
     {
       "name": "Loose sand",
+      "color": "#E3C98F",
       "behaviour": "granular",
-      "drainage": "double",
-      "thickness": 1.0,
+      "compression": "index",
       "gamma": 17.0,
       "gamma_sat": 19.0,
       "E": 8.0,
@@ -37,15 +37,18 @@
       "Cc": 0.0,
       "Cr": 0.0,
       "e0": 0.6,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.0,
       "cv": 0.0,
-      "Calpha": 0.0
+      "Calpha": 0.0,
+      "Calpha_eps": 0.0
     },
     {
       "name": "Medium dense sand",
+      "color": "#D9B36C",
       "behaviour": "granular",
-      "drainage": "double",
-      "thickness": 4.0,
+      "compression": "index",
       "gamma": 18.5,
       "gamma_sat": 20.0,
       "E": 22.0,
@@ -53,15 +56,18 @@
       "Cc": 0.0,
       "Cr": 0.0,
       "e0": 0.6,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.0,
       "cv": 0.0,
-      "Calpha": 0.0
+      "Calpha": 0.0,
+      "Calpha_eps": 0.0
     },
     {
       "name": "Dense sand",
+      "color": "#C7B39A",
       "behaviour": "granular",
-      "drainage": "double",
-      "thickness": 10.0,
+      "compression": "index",
       "gamma": 19.5,
       "gamma_sat": 21.0,
       "E": 55.0,
@@ -69,9 +75,29 @@
       "Cc": 0.0,
       "Cr": 0.0,
       "e0": 0.6,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.0,
       "cv": 0.0,
-      "Calpha": 0.0
+      "Calpha": 0.0,
+      "Calpha_eps": 0.0
+    }
+  ],
+  "soil_profile": [
+    {
+      "material": "Loose sand",
+      "thickness": 1.0,
+      "drainage": "double"
+    },
+    {
+      "material": "Medium dense sand",
+      "thickness": 4.0,
+      "drainage": "double"
+    },
+    {
+      "material": "Dense sand",
+      "thickness": 10.0,
+      "drainage": "double"
     }
   ],
   "options": {
@@ -93,7 +119,7 @@
     "seed": 0,
     "variables": [
       {
-        "path": "soil_profile.1.E",
+        "path": "materials.1.E",
         "label": "Medium dense sand · E",
         "mode": "dist",
         "dist": "lognormal",

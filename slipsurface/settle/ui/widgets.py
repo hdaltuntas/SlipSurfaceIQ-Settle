@@ -1,7 +1,7 @@
 """Building blocks of the main window.
 
 FieldForm     input groups built from `forms` (the schema the core declares)
-SoilTable     the layered soil profile
+LayerTable    the soil profile: material, thickness, drainage
 StudyTable    the variables of a parametric / reliability study
 FigureView    a Matplotlib figure with its navigation toolbar
 SummaryView   the headline numbers and checks as cards
@@ -81,7 +81,7 @@ def _fmt(value) -> str:
     return str(value)
 
 
-class _QuietSpin(QDoubleSpinBox):
+class QuietSpin(QDoubleSpinBox):
     """A spin box that ignores the mouse wheel unless it has the focus, so
     scrolling the input panel never changes a value by accident."""
 
@@ -97,7 +97,7 @@ class _QuietSpin(QDoubleSpinBox):
             ev.ignore()
 
 
-class _QuietCombo(QComboBox):
+class QuietCombo(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFocusPolicy(Qt.StrongFocus)
@@ -165,7 +165,7 @@ class FieldForm(QScrollArea):
 
     def _editor(self, f: forms.Field) -> QWidget:
         if f.kind == "number":
-            w = _QuietSpin()
+            w = QuietSpin()
             w.setDecimals(max(int(f.decimals), 0))
             w.setRange(
                 -1e9 if f.min is None else float(f.min), 1e9 if f.max is None else float(f.max)
@@ -183,7 +183,7 @@ class FieldForm(QScrollArea):
             w.toggled.connect(lambda v, k=f.key: self._emit(k, bool(v)))
             return w
         if f.kind == "select":
-            w = _QuietCombo()
+            w = QuietCombo()
             for opt in f.options:
                 w.addItem(opt["label"], opt["value"])
             w.setCurrentIndex(max(w.findData(f.default), 0))
@@ -296,7 +296,7 @@ class _EditableTable(QWidget):
         if column["kind"] == "select":
             combo = self.table.cellWidget(row, col)
             if combo is None:
-                combo = _QuietCombo()
+                combo = QuietCombo()
                 for opt in column["options"]:
                     combo.addItem(opt["label"], opt["value"])
                 combo.currentIndexChanged.connect(
@@ -441,36 +441,83 @@ class _EditableTable(QWidget):
         self.changed.emit()
 
 
-#: Columns that only a cohesive (clay) layer uses
-COHESIVE_ONLY = ["Cc", "Cr", "e0", "OCR", "cv", "Calpha", "drainage"]
+def material_colour(material: dict) -> str:
+    """The fill of a material: its own colour, or that of its behaviour."""
+    fills = SOIL_FILL["dark" if is_dark() else "light"]
+    return str(material.get("color") or "") or fills.get(
+        str(material.get("behaviour", "granular")), "#cccccc"
+    )
 
 
-class SoilTable(_EditableTable):
-    """The soil profile, from the ground surface down."""
+class LayerTable(_EditableTable):
+    """The soil profile from the ground surface down: a material, a thickness
+    and, for a cohesive layer, the drainage."""
 
     def __init__(self, parent=None) -> None:
-        lang = language()
         super().__init__(
-            forms.soil_columns(lang), t("a_add_row"), t("a_del_row"), t("soil_note"), parent
+            forms.layer_columns(language()), t("a_add_row"), t("a_del_row"), "", parent
         )
+        self.materials: list[dict] = []
+        for name in ("add", "delete"):  # the dock is narrow: icons only
+            self.buttons[name].setToolButtonStyle(Qt.ToolButtonIconOnly)
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.table.verticalHeader().setDefaultSectionSize(28)
+
+    def _material(self, name: str) -> dict:
+        return next((m for m in self.materials if m.get("name") == name), {})
+
+    def set_materials(self, materials: list[dict]) -> None:
+        """The materials a layer may name; the layers keep the one they had."""
+        self.materials = [dict(m) for m in materials]
+        col = self.keys.index("material")
+        self.columns[col]["options"] = [{"value": m["name"], "label": m["name"]} for m in materials]
+        self._quiet = True
+        try:
+            for r in range(self.table.rowCount()):
+                combo = self.table.cellWidget(r, col)
+                if combo is None:
+                    continue
+                current = combo.currentData()
+                combo.blockSignals(True)
+                combo.clear()
+                self._fill(combo)
+                i = combo.findData(current)
+                combo.setCurrentIndex(max(i, 0))
+                combo.blockSignals(False)
+                self.restyle_row(r)
+        finally:
+            self._quiet = False
+
+    def _fill(self, combo: QComboBox) -> None:
+        for m in self.materials:
+            combo.addItem(color_icon(material_colour(m)), m["name"], m["name"])
+
+    def _set_cell(self, row: int, col: int, value: Any) -> None:
+        if self.keys[col] == "material" and self.table.cellWidget(row, col) is None:
+            combo = QuietCombo()
+            self._fill(combo)
+            combo.currentIndexChanged.connect(
+                lambda _i, c=combo: self._combo_changed(c, "material")
+            )
+            self.table.setCellWidget(row, col, combo)
+        super()._set_cell(row, col, value)
 
     def new_row(self) -> dict[str, Any]:
         rows = self.rows()
-        base = dict(rows[-1]) if rows else dict(forms.default_soil_rows()[-1])
-        base["name"] = f"{'Tabaka' if language() == 'tr' else 'Layer'} {len(rows) + 1}"
-        return base
+        if rows:
+            return dict(rows[-1])
+        name = self.materials[0]["name"] if self.materials else ""
+        return {"material": name, "thickness": 1.0, "drainage": "double"}
 
     def restyle_row(self, row: int) -> None:
-        values = {key: self._cell(row, c) for c, key in enumerate(self.keys)}
-        behaviour = values.get("behaviour") or "granular"
-        self.shade(row, [k for k in COHESIVE_ONLY if k != "drainage"], behaviour != "cohesive")
-        name = self.table.item(row, self.keys.index("name"))
-        if name is not None:
-            fill = SOIL_FILL["dark" if is_dark() else "light"].get(behaviour, "#cccccc")
-            name.setIcon(color_icon(fill))
+        name = self._cell(row, self.keys.index("material"))
+        cohesive = self._material(name).get("behaviour") == "cohesive"
         combo = self.table.cellWidget(row, self.keys.index("drainage"))
         if combo is not None:
-            combo.setEnabled(behaviour == "cohesive")
+            combo.setEnabled(cohesive)
 
 
 class StudyTable(_EditableTable):
@@ -683,6 +730,8 @@ class ProjectTree(QTreeWidget):
     """
 
     activated = Signal(int, str)
+    #: a double click on an item that has an editor: "materials", "study_vars"
+    edit_requested = Signal(str)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -692,7 +741,13 @@ class ProjectTree(QTreeWidget):
         self.header().setStretchLastSection(True)
         self.header().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.itemClicked.connect(self._clicked)
+        self.itemDoubleClicked.connect(self._double)
         self._expanded: dict[str, bool] = {}
+
+    def _double(self, item: QTreeWidgetItem, _col: int) -> None:
+        data = item.data(0, Qt.UserRole)
+        if data and str(data[1]) in ("materials", "study_vars"):
+            self.edit_requested.emit(str(data[1]))
 
     def _clicked(self, item: QTreeWidgetItem, _col: int) -> None:
         data = item.data(0, Qt.UserRole)
@@ -780,21 +835,37 @@ class ProjectTree(QTreeWidget):
             "fig:schematic",
         )
 
+        materials = values.get("materials") or []
+        by_name = {str(m.get("name")): m for m in materials}
+        mats = self._item(top, t("tr_materials"), str(len(materials)), "materials", 2, "materials")
+        mats.setData(1, Qt.UserRole, "materials")
+        mats.setToolTip(0, t("tr_edit_hint"))
+        for m in materials:
+            kind = t("behaviour_" + str(m.get("behaviour", "granular")))
+            if m.get("behaviour") == "cohesive":
+                kind += " · mv" if m.get("compression") == "mv" else " · Cc"
+            item = self._item(mats, str(m.get("name") or "—"), kind, "", 2, "materials")
+            item.setIcon(0, color_icon(material_colour(m)))
+            item.setToolTip(0, t("tr_edit_hint"))
+        self._expanded.setdefault("materials", False)
+
         layers = values.get("soil_profile") or []
         soil = self._item(top, t("tr_layers"), str(len(layers)), "soil", 2, "fig:schematic")
         soil.setData(1, Qt.UserRole, "soil")
-        fills = SOIL_FILL["dark" if is_dark() else "light"]
+        depth = 0.0
         for layer in layers:
+            thickness = _number(layer.get("thickness"))
+            name = str(layer.get("material") or "—")
             item = self._item(
                 soil,
-                str(layer.get("name") or "—"),
-                f"{_number(layer.get('thickness')):g} m · "
-                f"{t('behaviour_' + str(layer.get('behaviour', 'granular')))}",
+                name,
+                f"{depth:g} – {depth + thickness:g} m",
                 "",
                 2,
                 "fig:schematic",
             )
-            item.setIcon(0, color_icon(fills.get(layer.get("behaviour"), "#cccccc")))
+            depth += thickness
+            item.setIcon(0, color_icon(material_colour(by_name.get(name, {}))))
 
         method = t(f"stress_{values.get('stress_method', 'boussinesq')}")
         immediate = t(f"immediate_{values.get('immediate_method', 'elastic')}")
@@ -849,6 +920,15 @@ class ProjectTree(QTreeWidget):
             bold=True,
         )
         st.setData(1, Qt.UserRole, "study")
+        variables = self._item(
+            st,
+            t("tab_vars"),
+            str(len(values.get("study_variables") or [])),
+            "study_vars",
+            5,
+            "study_vars",
+        )
+        variables.setToolTip(0, t("tr_edit_hint"))
         if study:
             self._item(
                 st,

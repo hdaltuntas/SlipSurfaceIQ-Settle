@@ -2,8 +2,8 @@
 
 Laid out as SlipSurfaceIQ LE: a breadcrumb workflow bar and the main toolbar
 on top, the project tree and the input panel of the current step in the left
-dock, the results and figures in the middle, and the soil profile and study
-variables tables in a dock below them.
+dock, and the results and figures in the middle. Materials and study
+variables are defined in their own dialogs, as LE defines its materials.
 
 The analysis takes milliseconds, so it runs on every committed change while
 "Recompute automatically" is on; a study runs in the background and reports
@@ -13,6 +13,7 @@ its progress in the status bar.
 from __future__ import annotations
 
 import copy
+import html
 import json
 import time
 from pathlib import Path
@@ -23,6 +24,7 @@ from PySide6.QtGui import QAction, QDesktopServices, QFont, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QDialog,
     QDockWidget,
     QFileDialog,
     QHBoxLayout,
@@ -49,6 +51,7 @@ from ..plotting import PLOT_KEYS, Plotter
 from ..render import STUDY_VIEWS, available_study_views
 from ..session import Session
 from . import texts
+from .dialogs import MaterialsDialog, StudyVariablesDialog
 from .icons import icon
 from .preferences import (
     TECHNOLOGIES,
@@ -62,8 +65,7 @@ from .widgets import (
     FieldForm,
     FigureView,
     ProjectTree,
-    SoilTable,
-    StudyTable,
+    LayerTable,
     SummaryView,
     note_label,
 )
@@ -163,6 +165,8 @@ class SettleWindow(QMainWindow):
         self.a_save_as = A("a_save_as", self.save_project_as, None, QKeySequence.SaveAs)
         self.a_undo = A("a_undo", self.undo, "undo", QKeySequence.Undo)
         self.a_redo = A("a_redo", self.redo, "redo", QKeySequence.Redo)
+        self.a_materials = A("a_materials", self.define_materials, "materials", "Ctrl+M")
+        self.a_study_vars = A("a_study_vars", self.define_study_variables, "study_vars", "Ctrl+K")
         self.a_compute = A("a_compute", self.compute, "compute", "F5")
         self.a_auto = A("a_auto", self._auto_toggled, "auto", checkable=True)
         self.a_auto.setChecked(settings().value("auto", True, type=bool))
@@ -204,6 +208,10 @@ class SettleWindow(QMainWindow):
         m.addSeparator()
         m.addAction(self.a_quit)
 
+        m = mb.addMenu(t("m_properties"))
+        m.addAction(self.a_materials)
+        m.addAction(self.a_study_vars)
+
         m = mb.addMenu(t("m_analysis"))
         for a in (
             self.a_compute,
@@ -226,8 +234,7 @@ class SettleWindow(QMainWindow):
             act.setChecked(texts.language() == code)
             act.triggered.connect(lambda _=False, c=code: self.change_language(c))
         m.addSeparator()
-        for dock in (self.left_dock, self.bottom_dock):
-            m.addAction(dock.toggleViewAction())
+        m.addAction(self.left_dock.toggleViewAction())
 
         m = mb.addMenu(t("m_help"))
         m.addAction(self.a_theory)
@@ -273,6 +280,9 @@ class SettleWindow(QMainWindow):
             None,
             self.a_undo,
             self.a_redo,
+            None,
+            self.a_materials,
+            self.a_study_vars,
             None,
             self.a_compute,
             self.a_auto,
@@ -389,25 +399,28 @@ class SettleWindow(QMainWindow):
         # ---------------------------------------------------------- left: tree + inputs
         self.tree = ProjectTree()
         self.tree.activated.connect(self._tree_activated)
+        self.tree.edit_requested.connect(self._tree_edit)
         self.pages = QStackedWidget()
         self.form_project = FieldForm(forms.project_groups(lang))
         self.form_load = FieldForm(forms.foundation_groups(lang))
         self.form_options = FieldForm(forms.option_groups(lang))
-        self.form_study = FieldForm(forms.study_groups(lang), note=t("study_vars_page"))
+        self.form_study = FieldForm(forms.study_groups(lang))
         self.forms = [self.form_project, self.form_load, self.form_options, self.form_study]
         for form in self.forms:
             form.changed.connect(self._field_changed)
+        self.layer_table = LayerTable()
+        self.layer_table.changed.connect(self._layers_changed)
         self.pages.addWidget(self.form_project)
         self.pages.addWidget(self.form_load)
-        self.pages.addWidget(self._note_page(t("step_soil"), t("soil_page")))
+        self.pages.addWidget(self._soil_page())
         self.pages.addWidget(self.form_options)
         self.pages.addWidget(self._note_page(t("step_results"), t("results_page")))
-        self.pages.addWidget(self.form_study)
+        self.pages.addWidget(self._study_page())
 
         split = QSplitter(Qt.Vertical)
         split.addWidget(self.tree)
         split.addWidget(self.pages)
-        split.setSizes([360, 480])
+        split.setSizes([340, 520])
         dock = QDockWidget(t("dock_project"), self)
         dock.setObjectName("project_dock")
         dock.setWidget(split)
@@ -417,29 +430,50 @@ class SettleWindow(QMainWindow):
             | QDockWidget.DockWidgetClosable
         )
         self.addDockWidget(Qt.LeftDockWidgetArea, dock)
-        self.resizeDocks([dock], [380], Qt.Horizontal)
+        self.resizeDocks([dock], [400], Qt.Horizontal)
         self.left_dock = dock
 
-        # ---------------------------------------------------------- bottom: tables
-        self.soil_table = SoilTable()
-        self.soil_table.changed.connect(self._soil_changed)
-        self.vars_table = StudyTable()
-        self.vars_table.changed.connect(self._vars_changed)
-        self.table_tabs = QTabWidget()
-        self.table_tabs.setDocumentMode(True)
-        self.table_tabs.addTab(self.soil_table, icon("soil"), t("tab_soil"))
-        self.table_tabs.addTab(self.vars_table, icon("study_vars"), t("tab_vars"))
-        bottom = QDockWidget(t("dock_tables"), self)
-        bottom.setObjectName("tables_dock")
-        bottom.setWidget(self.table_tabs)
-        bottom.setFeatures(
-            QDockWidget.DockWidgetMovable
-            | QDockWidget.DockWidgetFloatable
-            | QDockWidget.DockWidgetClosable
-        )
-        self.addDockWidget(Qt.BottomDockWidgetArea, bottom)
-        self.resizeDocks([bottom], [250], Qt.Vertical)
-        self.bottom_dock = bottom
+    def _soil_page(self) -> QWidget:
+        """The layers, from the ground surface down, and the way to the materials."""
+        from .widgets import header
+
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(4, 4, 4, 4)
+        lay.setSpacing(4)
+        lay.addWidget(header(t("tab_soil")))
+        button = QPushButton(icon("materials"), t("a_materials").replace("&", ""))
+        button.clicked.connect(lambda: self.define_materials())
+        lay.addWidget(button)
+        lay.addWidget(self.layer_table, 1)
+        lay.addWidget(note_label(t("soil_note")))
+        return page
+
+    def _study_page(self) -> QWidget:
+        """The study options, and the variables with the way to their dialog."""
+        from .widgets import header
+
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(4)
+        lay.addWidget(self.form_study)
+        self.form_study.setMinimumHeight(230)
+        box = QWidget()
+        bl = QVBoxLayout(box)
+        bl.setContentsMargins(4, 0, 4, 4)
+        bl.addWidget(header(t("tab_vars")))
+        self.vars_list = QLabel()
+        self.vars_list.setWordWrap(True)
+        self.vars_list.setTextFormat(Qt.RichText)
+        self.vars_list.setStyleSheet("padding:2px 6px;")
+        bl.addWidget(self.vars_list)
+        button = QPushButton(icon("study_vars"), t("a_study_vars").replace("&", ""))
+        button.clicked.connect(lambda: self.define_study_variables())
+        bl.addWidget(button)
+        lay.addWidget(box)
+        lay.addStretch(1)
+        return page
 
     @staticmethod
     def _note_page(title: str, text: str) -> QWidget:
@@ -460,9 +494,9 @@ class SettleWindow(QMainWindow):
         for form in self.forms:
             form.set_values(self.values)
         self._update_shape()
-        self.soil_table.set_rows(self.values.get("soil_profile") or [])
-        self._refresh_choices()
-        self.vars_table.set_rows(self.values.get("study_variables") or [])
+        self.layer_table.set_materials(self.values.get("materials") or [])
+        self.layer_table.set_rows(self.values.get("soil_profile") or [])
+        self._refresh_vars_list()
         if record:
             self._record()
         self.compute()
@@ -473,13 +507,59 @@ class SettleWindow(QMainWindow):
             self._update_shape()
         self._changed(recompute=not key.startswith("study_"))
 
-    def _soil_changed(self) -> None:
-        self.values["soil_profile"] = self.soil_table.rows()
+    def _layers_changed(self) -> None:
+        self.values["soil_profile"] = self.layer_table.rows()
         self._changed()
 
-    def _vars_changed(self) -> None:
-        self.values["study_variables"] = self.vars_table.rows()
-        self._changed(recompute=False)
+    # ---------------------------------------------------------------- dialogs
+    def define_materials(self, select: str | None = None) -> None:
+        """Opens the materials dialog; the layers follow renamed materials."""
+        used: dict[str, int] = {}
+        for row in self.values.get("soil_profile") or []:
+            name = str(row.get("material", ""))
+            used[name] = used.get(name, 0) + 1
+        dlg = MaterialsDialog(self.values.get("materials") or [], used, self, select)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        materials = dlg.result_materials()
+        if materials == self.values.get("materials") and not dlg.renames:
+            return
+        self.values["materials"] = materials
+        for row in self.values.get("soil_profile") or []:
+            row["material"] = dlg.renames.get(row.get("material"), row.get("material"))
+        self.layer_table.set_materials(materials)
+        self.layer_table.set_rows(self.values["soil_profile"])
+        self._changed()
+
+    def define_study_variables(self) -> None:
+        try:
+            choices = forms.variable_choices(self.values, texts.language())
+        except (ValueError, KeyError, TypeError, IndexError):
+            choices = []
+        dlg = StudyVariablesDialog(choices, self.values.get("study_variables") or [], self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        rows = dlg.result_rows()
+        if rows != self.values.get("study_variables"):
+            self.values["study_variables"] = rows
+            self._refresh_vars_list()
+            self._changed(recompute=False)
+
+    def _refresh_vars_list(self) -> None:
+        rows = self.values.get("study_variables") or []
+        if not rows:
+            self.vars_list.setText(f"<i>{html.escape(t('study_no_vars'))}</i>")
+            return
+        items = []
+        for row in rows:
+            label = html.escape(str(row.get("label") or row.get("path", "")))
+            if row.get("mode") == "dist":
+                detail = f"{t('dist_' + str(row.get('dist', 'normal')))}, μ = {row.get('mean')}"
+                detail += f", CoV = {row.get('cov')}"
+            else:
+                detail = f"{row.get('min')} – {row.get('max')}"
+            items.append(f"<li><b>{label}</b>: {html.escape(detail)}</li>")
+        self.vars_list.setText(f"<ul style='margin:0;-qt-list-indent:1'>{''.join(items)}</ul>")
 
     def _changed(self, recompute: bool = True) -> None:
         self.dirty = True
@@ -500,10 +580,18 @@ class SettleWindow(QMainWindow):
             form.set_shape(shape)
 
     def _refresh_choices(self) -> None:
+        """Study variables follow renamed inputs (a material's new name)."""
         try:
-            self.vars_table.set_choices(forms.variable_choices(self.values, texts.language()))
+            choices = {
+                c["value"]: c["label"]
+                for c in forms.variable_choices(self.values, texts.language())
+            }
         except (ValueError, KeyError, TypeError, IndexError):
-            pass
+            return
+        for row in self.values.get("study_variables") or []:
+            if row.get("path") in choices:
+                row["label"] = choices[row["path"]]
+        self._refresh_vars_list()
 
     # ---------------------------------------------------------------- history
     def _record(self) -> None:
@@ -632,18 +720,18 @@ class SettleWindow(QMainWindow):
     def _step_changed(self, step: int) -> None:
         self.workflow.set_current(step, emit=False)
         self.pages.setCurrentIndex(step)
-        if step == STEP_SOIL:
-            self.table_tabs.setCurrentWidget(self.soil_table)
-            self.bottom_dock.show()
-        elif step == STEP_STUDY:
-            self.table_tabs.setCurrentWidget(self.vars_table)
-            self.bottom_dock.show()
         self.show_view(STEP_VIEW[step])
 
     def _tree_activated(self, step: int, target: str) -> None:
         self._step_changed(step)
-        if target:
+        if target and target not in ("materials", "study_vars"):
             self.show_view(target)
+
+    def _tree_edit(self, target: str) -> None:
+        if target == "materials":
+            self.define_materials()
+        elif target == "study_vars":
+            self.define_study_variables()
 
     def _refresh_tree(self) -> None:
         study = None
@@ -836,13 +924,16 @@ class SettleWindow(QMainWindow):
     def _confirm_discard(self) -> bool:
         if not self.dirty:
             return True
-        answer = QMessageBox.question(
-            self,
-            t("unsaved_title"),
-            t("unsaved_text"),
-            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
-            QMessageBox.Save,
-        )
+        box = QMessageBox(QMessageBox.Question, t("unsaved_title"), t("unsaved_text"), parent=self)
+        box.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+        box.setDefaultButton(QMessageBox.Save)
+        for button, key in (
+            (QMessageBox.Save, "btn_save"),
+            (QMessageBox.Discard, "btn_discard"),
+            (QMessageBox.Cancel, "btn_cancel"),
+        ):
+            box.button(button).setText(t(key))
+        answer = box.exec()
         if answer == QMessageBox.Save:
             return self.save_project()
         return answer == QMessageBox.Discard

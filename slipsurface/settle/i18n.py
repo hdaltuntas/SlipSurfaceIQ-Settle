@@ -71,8 +71,17 @@ ENTRIES = {
         "zemin sıkışmaz kabul edildi.",
     ),
     "warn_no_cc": (
-        "Cohesive layer '{name}' has no Cc or Cr: its consolidation settlement is zero.",
-        "Kohezyonlu '{name}' tabakasında Cc veya Cr yok: konsolidasyon oturması sıfır.",
+        "Cohesive layer '{name}' has no Cc or Cr (or mv): its consolidation settlement is zero.",
+        "Kohezyonlu '{name}' tabakasında Cc veya Cr (ya da mv) yok: konsolidasyon oturması sıfır.",
+    ),
+    "warn_no_E": (
+        "Cohesive layer '{name}' has E = 0: its immediate settlement is not computed, only its "
+        "consolidation.",
+        "Kohezyonlu '{name}' tabakasında E = 0: ani oturması hesaplanmaz, yalnız konsolidasyonu.",
+    ),
+    "err_material": (
+        "Layer {layer}: the material '{name}' is not defined.",
+        "{layer}. tabaka: '{name}' malzemesi tanımlı değil.",
     ),
     "warn_no_cv": (
         "Cohesive layer '{name}' has no cv: it is taken as consolidating at once.",
@@ -113,6 +122,12 @@ ENTRIES = {
     "rigidity_rigid": ("Rigid", "Rijit"),
     "behaviour_granular": ("Granular", "Granüler"),
     "behaviour_cohesive": ("Cohesive", "Kohezyonlu"),
+    "behaviour_incompressible": ("Incompressible", "Sıkışmaz"),
+    "compression_index": ("Compression indices (Cc, Cr, e0)", "Sıkışma indisleri (Cc, Cr, e0)"),
+    "compression_mv": (
+        "Volume compressibility (mv, mv,ur)",
+        "Hacimsel sıkışma katsayısı (mv, mv,ur)",
+    ),
     "drainage_double": ("Double", "Çift yönlü"),
     "drainage_single": ("Single", "Tek yönlü"),
     "point_center": ("Centre", "Merkez"),
@@ -125,6 +140,11 @@ ENTRIES = {
     "method_elastic": ("Elastic (Steinbrenner)", "Elastik (Steinbrenner)"),
     "method_schmertmann": ("Schmertmann", "Schmertmann"),
     "method_cohesive": ("Undrained elastic + consolidation", "Drenajsız elastik + konsolidasyon"),
+    "method_cohesive_mv": (
+        "Undrained elastic + consolidation (mv)",
+        "Drenajsız elastik + konsolidasyon (mv)",
+    ),
+    "method_incompressible": ("Incompressible — no settlement", "Sıkışmaz — oturma yok"),
     # ------------------------------------------------------------------ input groups
     "group_project": ("Project", "Proje"),
     "title_label": ("Title", "Başlık"),
@@ -176,6 +196,7 @@ ENTRIES = {
     "criteria_note": ("Enter 0 to leave a check out.", "Bir kontrolü kapatmak için 0 girin."),
     # ------------------------------------------------------------------ soil table
     "col_name": ("Layer", "Tabaka"),
+    "col_material": ("Material", "Malzeme"),
     "col_thickness": ("t (m)", "t (m)"),
     "col_behaviour": ("Type", "Tür"),
     "col_gamma": ("γ (kN/m³)", "γ (kN/m³)"),
@@ -190,10 +211,61 @@ ENTRIES = {
     "col_Calpha": ("Cα", "Cα"),
     "col_drainage": ("Drainage", "Drenaj"),
     "soil_note": (
-        "E is the drained modulus of a granular layer and the undrained modulus of a "
-        "cohesive one. Cc, Cr, e0, OCR, cv, Cα and drainage apply to cohesive layers.",
-        "E, granüler tabakada drenajlı, kohezyonlu tabakada drenajsız modüldür. Cc, Cr, "
-        "e0, OCR, cv, Cα ve drenaj kohezyonlu tabakalar içindir.",
+        "Layers from the ground surface down. Each names a material (Properties › Define "
+        "Materials); the drainage applies to cohesive layers.",
+        "Tabakalar yüzeyden aşağı sıralanır. Her biri bir malzemeye bağlıdır (Özellikler › "
+        "Malzemeleri Tanımla); drenaj kohezyonlu tabakalar içindir.",
+    ),
+    # ------------------------------------------------------------------ materials
+    "mat_new": ("Material", "Malzeme"),
+    "mat_name": ("Name", "Ad"),
+    "mat_color": ("Colour", "Renk"),
+    "mat_behaviour": ("Behaviour", "Davranış"),
+    "mat_compression": ("Consolidation parameters", "Konsolidasyon parametreleri"),
+    "mat_gamma": ("Unit weight γ", "Birim hacim ağırlık γ"),
+    "mat_gamma_sat": ("Saturated unit weight γsat", "Doygun birim hacim ağırlık γdoy"),
+    "mat_E": ("Modulus E", "Elastisite modülü E"),
+    "mat_nu": ("Poisson's ratio ν", "Poisson oranı ν"),
+    "mat_Cc": ("Compression index Cc", "Sıkışma indisi Cc"),
+    "mat_Cr": ("Recompression index Cr", "Yeniden sıkışma indisi Cr"),
+    "mat_e0": ("Initial void ratio e0", "Başlangıç boşluk oranı e0"),
+    "mat_mv": ("Volume compressibility mv", "Hacimsel sıkışma katsayısı mv"),
+    "mat_mv_ur": ("Reloading compressibility mv,ur", "Yeniden yükleme katsayısı mv,ur"),
+    "mat_OCR": ("Over-consolidation ratio OCR", "Aşırı konsolidasyon oranı OCR"),
+    "mat_cv": ("Coefficient of consolidation cv", "Konsolidasyon katsayısı cv"),
+    "mat_Calpha": ("Secondary compression index Cα", "İkincil sıkışma indisi Cα"),
+    "mat_Calpha_eps": ("Secondary compression rate Cαε", "İkincil sıkışma oranı Cαε"),
+    "grp_mat_weight": ("Unit weights", "Birim hacim ağırlıklar"),
+    "grp_mat_elastic": ("Immediate settlement", "Ani oturma"),
+    "grp_mat_cons": ("Consolidation", "Konsolidasyon"),
+    "grp_mat_time": ("Time and secondary compression", "Zaman ve ikincil sıkışma"),
+    "mat_note_granular": (
+        "E is the drained modulus. A granular material settles at once: elastically "
+        "(Steinbrenner) or by Schmertmann.",
+        "E drenajlı modüldür. Granüler malzeme hemen oturur: elastik (Steinbrenner) ya da "
+        "Schmertmann ile.",
+    ),
+    "mat_note_index": (
+        "E is the undrained modulus (0: no immediate settlement). Primary settlement from "
+        "Cr up to σ'p = OCR·σ'v0 and Cc beyond it; secondary from Cα.",
+        "E drenajsız modüldür (0: ani oturma yok). Birincil oturma σ'p = OCR·σ'v0'a kadar "
+        "Cr, ötesinde Cc ile; ikincil sıkışma Cα ile.",
+    ),
+    "mat_note_mv": (
+        "Settlement from the coefficients of volume compressibility only: ε = mv,ur·Δσ' up to "
+        "σ'p = OCR·σ'v0 and mv·Δσ' beyond it (OCR = 1: ε = mv·Δσ'). cv gives the time; "
+        "Cαε = Cα/(1 + e0) the secondary compression. E is the undrained modulus "
+        "(0: no immediate settlement).",
+        "Oturma yalnız hacimsel sıkışma katsayılarıyla: σ'p = OCR·σ'v0'a kadar ε = mv,ur·Δσ', "
+        "ötesinde mv·Δσ' (OCR = 1: ε = mv·Δσ'). Zamanı cv, ikincil sıkışmayı "
+        "Cαε = Cα/(1 + e0) verir. E drenajsız modüldür (0: ani oturma yok).",
+    ),
+    "mat_note_incompressible": (
+        "Rock or any other unit taken as incompressible: it does not settle. Its weight still "
+        "counts in the in-situ stresses, and the stress increase through it is still that of "
+        "the homogeneous half-space.",
+        "Kaya ya da sıkışmaz kabul edilen herhangi bir birim: oturmaz. Ağırlığı yerinde "
+        "gerilmelerde yine sayılır; içindeki gerilme artışı yine homojen yarı sonsuz ortamınkidir.",
     ),
     # ------------------------------------------------------------------ summary cards
     "card_total": ("Total settlement", "Toplam oturma"),
@@ -423,6 +495,9 @@ ENTRIES = {
     "var_OCR": ("OCR", "OCR"),
     "var_cv": ("cv", "cv"),
     "var_Calpha": ("Cα", "Cα"),
+    "var_mv": ("mv", "mv"),
+    "var_mv_ur": ("mv,ur", "mv,ur"),
+    "var_Calpha_eps": ("Cαε", "Cαε"),
     "var_crest": ("crest width", "tepe genişliği"),
     "var_height": ("H", "H"),
     "var_slope_left": ("left slope", "sol şev"),

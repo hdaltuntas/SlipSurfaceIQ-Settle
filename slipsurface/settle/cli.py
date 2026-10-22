@@ -75,11 +75,11 @@ def _example_study(values: dict) -> list:
             "n_points": 5,
         },
         {
-            "path": "soil_profile.2.Cc",
+            "path": "materials.2.Cc",
             "label": "Soft clay · Cc",
             "mode": "dist",
             "dist": "lognormal",
-            "mean": values["soil_profile"][2]["Cc"],
+            "mean": values["materials"][2]["Cc"],
             "cov": 0.25,
             "min": 0,
             "max": 0,

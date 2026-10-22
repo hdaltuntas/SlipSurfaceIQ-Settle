@@ -111,26 +111,144 @@ def test_every_figure_draws(window):
         assert window.fig_views[key].figure.axes, key
 
 
-def test_the_soil_table_adds_moves_and_removes_layers(window):
+def test_the_layer_table_adds_moves_and_removes_layers(window):
     n = len(window.values["soil_profile"])
-    window.soil_table.add_row()
+    window.layer_table.add_row()
     assert len(window.values["soil_profile"]) == n + 1
-    window.soil_table.table.selectRow(0)
-    window.soil_table.move_row(1)
-    names = [row["name"] for row in window.values["soil_profile"]]
+    window.layer_table.table.selectRow(0)
+    window.layer_table.move_row(1)
+    names = [row["material"] for row in window.values["soil_profile"]]
     assert names[1] == "Fill"
-    window.soil_table.table.selectRow(n)
-    window.soil_table.remove_row()
+    window.layer_table.table.selectRow(n)
+    window.layer_table.remove_row()
     assert len(window.values["soil_profile"]) == n
 
 
-def test_a_bad_number_in_the_soil_table_is_refused(window):
-    col = window.soil_table.keys.index("E")
-    item = window.soil_table.table.item(2, col)
+def test_a_bad_number_in_the_layer_table_is_refused(window):
+    col = window.layer_table.keys.index("thickness")
+    item = window.layer_table.table.item(2, col)
     item.setText("abc")
     assert item.text() == "6"
     item.setText("7,5")  # a decimal comma is accepted
-    assert window.values["soil_profile"][2]["E"] == 7.5
+    assert window.values["soil_profile"][2]["thickness"] == 7.5
+
+
+def test_a_layer_takes_another_material_and_drainage_follows_it(window):
+    col = window.layer_table.keys.index("material")
+    drainage = window.layer_table.table.cellWidget(1, window.layer_table.keys.index("drainage"))
+    assert not drainage.isEnabled()  # a sand
+    combo = window.layer_table.table.cellWidget(1, col)
+    combo.setCurrentIndex(combo.findData("Soft clay"))
+    window.compute()
+    assert window.values["soil_profile"][1]["material"] == "Soft clay"
+    assert drainage.isEnabled()
+    assert window.layer_table.table.cellWidget(1, col).itemIcon(0).isNull() is False
+
+
+def _materials_dialog(window, monkeypatch, edit):
+    """Opens the materials dialog, lets `edit` work on it, and accepts it."""
+    from PySide6.QtWidgets import QDialog
+
+    import slipsurface.settle.ui.mainwindow as mw
+
+    real = mw.MaterialsDialog
+
+    class Driven(real):
+        def exec(self):
+            edit(self)
+            self._accept()
+            return QDialog.Accepted if self.result() == QDialog.Accepted else QDialog.Rejected
+
+    monkeypatch.setattr(mw, "MaterialsDialog", Driven)
+    window.define_materials()
+
+
+def test_a_clay_defined_by_mv_changes_the_settlement(window, monkeypatch):
+    before = window.result["total"]
+
+    def edit(dlg):
+        dlg.list.setCurrentRow(2)
+        assert dlg.spins["Cc"].isVisibleTo(dlg) and not dlg.spins["mv"].isVisibleTo(dlg)
+        dlg.compression.setCurrentIndex(dlg.compression.findData("mv"))
+        assert dlg.spins["mv"].isVisibleTo(dlg) and not dlg.spins["Cc"].isVisibleTo(dlg)
+        dlg.spins["mv"].setValue(2.0)
+
+    _materials_dialog(window, monkeypatch, edit)
+    window.compute()
+    clay = window.values["materials"][2]
+    assert clay["compression"] == "mv" and clay["mv"] == 2.0
+    assert window.result["total"] > before
+    assert window.dirty and window.a_undo.isEnabled()
+
+
+def test_an_incompressible_material_shows_only_its_weights(window, monkeypatch):
+    def edit(dlg):
+        dlg._add()
+        dlg.name.setText("Kireçtaşı")
+        dlg._name_edited("Kireçtaşı")
+        dlg.behaviour.setCurrentIndex(dlg.behaviour.findData("incompressible"))
+        shown = [k for k, s in dlg.spins.items() if s.isVisibleTo(dlg)]
+        assert shown == ["gamma", "gamma_sat"]
+        assert not dlg.compression.isVisibleTo(dlg)
+
+    _materials_dialog(window, monkeypatch, edit)
+    assert window.values["materials"][-1]["name"] == "Kireçtaşı"
+    window.layer_table.add_row()
+    combo = window.layer_table.table.cellWidget(4, 0)
+    combo.setCurrentIndex(combo.findData("Kireçtaşı"))
+    window.compute()
+    rock = [row for row in window.session.analysis.results["layers"] if row["name"] == "Kireçtaşı"]
+    assert rock and rock[0]["immediate"] == 0.0 and rock[0]["method"] == "incompressible"
+
+
+def test_renaming_a_material_renames_its_layers(window, monkeypatch):
+    def edit(dlg):
+        dlg.list.setCurrentRow(2)
+        dlg.name.setText("Yumuşak kil")
+        dlg._name_edited("Yumuşak kil")
+
+    _materials_dialog(window, monkeypatch, edit)
+    assert window.values["soil_profile"][2]["material"] == "Yumuşak kil"
+    assert window.result is not None
+
+
+def test_a_material_in_use_cannot_be_deleted(window, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    shown = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: shown.append(a[2]))
+
+    def edit(dlg):
+        dlg.list.setCurrentRow(0)
+        dlg._delete()
+        assert len(dlg.mats) == 4
+
+    _materials_dialog(window, monkeypatch, edit)
+    assert shown and "Fill" in shown[0]
+
+
+def test_duplicate_material_names_are_refused(window, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    from slipsurface.settle.ui.dialogs import MaterialsDialog
+
+    warned = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warned.append(a[2]))
+    dlg = MaterialsDialog(window.values["materials"], {}, window)
+    dlg.list.setCurrentRow(1)
+    dlg._name_edited("Fill")
+    dlg._accept()
+    from PySide6.QtWidgets import QDialog
+
+    assert warned and dlg.result() != QDialog.Accepted
+
+
+def test_there_is_no_bottom_band(window):
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QDockWidget
+
+    docks = window.findChildren(QDockWidget)
+    assert [window.dockWidgetArea(d) for d in docks] == [Qt.LeftDockWidgetArea]
 
 
 def test_undo_and_redo_restore_the_inputs(window):
@@ -150,7 +268,7 @@ def test_undo_and_redo_restore_the_inputs(window):
 def test_a_project_saves_and_opens_again(window, tmp_path):
     window.form_project.editors["title"].setText("Deneme")
     window.form_project.editors["title"].editingFinished.emit()
-    window.soil_table.add_row()
+    window.layer_table.add_row()
     path = tmp_path / "deneme.settle"
     assert window._write(path)
     assert not window.dirty and window.windowTitle().startswith("deneme.settle")
@@ -178,10 +296,21 @@ def test_every_example_opens_and_computes(window, name):
     assert window.result["total"] > 0
 
 
-def test_a_study_runs_in_the_background_and_is_shown(app, window):
+def _add_variable(window, monkeypatch):
+    """Adds one study variable through the Study Variables dialog."""
+    from PySide6.QtWidgets import QDialog
+
+    import slipsurface.settle.ui.mainwindow as mw
+
+    monkeypatch.setattr(mw.StudyVariablesDialog, "exec", lambda self: QDialog.Accepted)
+    window.define_study_variables()  # an empty table opens with one row
+
+
+def test_a_study_runs_in_the_background_and_is_shown(app, window, monkeypatch):
     window.form_study.editors["study_n"].setValue(40)
-    window.vars_table.add_row()
+    _add_variable(window, monkeypatch)
     assert window.values["study_variables"]
+    assert window.values["study_variables"][0]["label"] in window.vars_list.text()
     window.start_study()
     _wait_study(app, window)
     assert window.session.study is not None and len(window.session.study.rows) == 40
@@ -195,10 +324,11 @@ def test_a_study_runs_in_the_background_and_is_shown(app, window):
         assert window.study_figure.drawn
 
 
-def test_a_study_variable_takes_its_input_s_project_value(window):
-    window.vars_table.add_row()
+def test_a_study_variable_takes_its_input_s_project_value(window, monkeypatch):
+    _add_variable(window, monkeypatch)
     row = window.values["study_variables"][0]
-    choice = next(c for c in window.vars_table.choices if c["value"] == row["path"])
+    choices = forms.variable_choices(window.values, "tr")
+    choice = next(c for c in choices if c["value"] == row["path"])
     assert row["mean"] == pytest.approx(choice["base"])
     assert row["label"] == choice["label"]
 
@@ -259,7 +389,7 @@ def test_every_interface_text_exists_in_both_languages():
         assert len(pair) == 2 and all(pair), key
     used = set()
     for path in UI.glob("*.py"):
-        used.update(re.findall(r'\bt\("([a-z_A-Z0-9]+)"', path.read_text(encoding="utf-8")))
+        used.update(re.findall(r'\bt\("([a-z_A-Z0-9]+)"[,)]', path.read_text(encoding="utf-8")))
     for lang in ("en", "tr"):
         texts.set_language(lang)
         missing = [key for key in used if texts.t(key) == key]

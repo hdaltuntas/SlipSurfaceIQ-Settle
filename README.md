@@ -2,7 +2,7 @@
 
 # SlipSurfaceIQ Settle
 
-**Settlement analysis of shallow foundations and embankments with a desktop interface — version 2026.0.0**
+**Settlement analysis of shallow foundations and embankments with a desktop interface — version 2026.0.1**
 
 [![CI](https://github.com/hdaltuntas/SlipSurfaceIQ-Settle/actions/workflows/ci.yml/badge.svg)](https://github.com/hdaltuntas/SlipSurfaceIQ-Settle/actions/workflows/ci.yml)
 
@@ -50,6 +50,10 @@ without losing work.
 |---|---|
 | ![Embankment](docs/screenshots/embankment_tr.png) | ![Sweep](docs/screenshots/study_oat_tr.png) |
 
+| Define materials: a clay by mv | Soil profile: materials and layers |
+|---|---|
+| ![Materials](docs/screenshots/materials_tr.png) | ![Soil profile](docs/screenshots/soil_tr.png) |
+
 ## Installation and start-up
 
 **Installers** (no Python needed): Windows MSI, Ubuntu DEB, Fedora / openSUSE RPM and Arch
@@ -85,15 +89,20 @@ dock and the most useful view in the middle.
 2. **Foundation / Fill** — shape, dimensions, depth Df, bearing pressure q (or the
    embankment geometry and unit weight), and the water table. Only the inputs that apply
    to the chosen shape are shown.
-3. **Soil Profile** — the layers are edited in the table below the drawing, from the
-   ground surface down. Columns that only a clay uses are shaded for a granular layer.
+3. **Soil Profile** — the layers from the ground surface down, each a material, a
+   thickness and, for a clay, the drainage. The materials themselves are defined in
+   **Properties › Define Materials…** (Ctrl+M): granular, cohesive or incompressible
+   (rock and the like). A cohesive material is described either by its compression
+   indices (Cc, Cr, e0) or by its coefficients of volume compressibility (mv, mv,ur),
+   with OCR, cv and the secondary compression rate.
 4. **Options** — stress distribution, immediate-settlement method, flexible or rigid,
    sublayer thickness, influence depth, design life, creep; allowable settlement and
    distortion.
 5. **Results** — summary cards with the checks, a full text listing and seven figures.
 6. **Study** — sampling method, number of samples and seed in the left dock; the
-   variables (an input with a range or a distribution) in the table below; results as a
-   sweep, histogram, scatter or tornado chart, a summary and the sampled table.
+   variables (an input with a range or a distribution) in **Properties › Study
+   Variables…** (Ctrl+K); results as a sweep, histogram, scatter or tornado chart, a
+   summary and the sampled table.
 
 The analysis takes a few milliseconds, so the results and figures follow every committed
 input change. Turn **Analysis › Recompute automatically** off to compute only on **F5**;
@@ -106,6 +115,7 @@ stale results are then flagged. A study runs in the background with a progress b
 | F6 | Run study |
 | Esc | Cancel study |
 | Ctrl+N / O / S | New / open / save project |
+| Ctrl+M / Ctrl+K | Define materials / study variables |
 | Ctrl+Z / Ctrl+Y | Undo / redo any input |
 | Ctrl+P | PDF report |
 | Ctrl+E | Export the current figure (PNG, SVG, PDF) |
@@ -121,7 +131,8 @@ stale results are then flagged. A study runs in the background with a progress b
 | Δσ, approximate | 2:1 spread |
 | embankment, immediate | Steinbrenner in plane strain, the crest as one strip and each slope as 16 slices |
 | immediate settlement | Steinbrenner F1, F2 on each layer (layered elastic), or Schmertmann (1978) with C1, C2 and the L/B-interpolated influence diagram |
-| primary consolidation | Cr up to σ'p = OCR·σ'v0, Cc beyond it, sublayer by sublayer at each point |
+| primary consolidation | Cr up to σ'p = OCR·σ'v0, Cc beyond it, sublayer by sublayer at each point — or ε = mv,ur·Δσ' up to σ'p and mv·Δσ' beyond it |
+| incompressible layer | no settlement; its weight counts in the in-situ stresses |
 | secondary compression | Cα/(1+e0)·H·log(t/t_p) from U = 95 % to the design life; Cα·Cr/Cc where the clay stays over-consolidated |
 | time | Terzaghi U(Tv), per clay layer, H_dr = H/2 or H |
 | rigid foundation | settlement of the characteristic point (0.74·B/2, 0.74·L/2; 0.845·R) |

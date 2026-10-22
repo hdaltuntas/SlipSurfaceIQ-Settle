@@ -1,6 +1,6 @@
 {
   "format": "slipsurface-settle",
-  "version": "0.1",
+  "version": "0.2",
   "project_info": {
     "title": "Embankment on soft clay",
     "analyst": ""
@@ -24,12 +24,12 @@
     "depth": 1.0,
     "gamma_water": 9.81
   },
-  "soil_profile": [
+  "materials": [
     {
       "name": "Desiccated crust",
+      "color": "#A7B8A0",
       "behaviour": "cohesive",
-      "drainage": "double",
-      "thickness": 1.5,
+      "compression": "index",
       "gamma": 18.0,
       "gamma_sat": 18.5,
       "E": 12.0,
@@ -37,15 +37,18 @@
       "Cc": 0.25,
       "Cr": 0.04,
       "e0": 0.9,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 3.0,
       "cv": 3.0,
-      "Calpha": 0.005
+      "Calpha": 0.005,
+      "Calpha_eps": 0.0
     },
     {
       "name": "Soft clay",
+      "color": "#8FA88A",
       "behaviour": "cohesive",
-      "drainage": "double",
-      "thickness": 8.0,
+      "compression": "index",
       "gamma": 16.5,
       "gamma_sat": 17.0,
       "E": 4.0,
@@ -53,15 +56,18 @@
       "Cc": 0.45,
       "Cr": 0.06,
       "e0": 1.4,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.2,
       "cv": 1.2,
-      "Calpha": 0.015
+      "Calpha": 0.015,
+      "Calpha_eps": 0.0
     },
     {
       "name": "Dense sand",
+      "color": "#E3C98F",
       "behaviour": "granular",
-      "drainage": "double",
-      "thickness": 8.0,
+      "compression": "index",
       "gamma": 19.5,
       "gamma_sat": 21.0,
       "E": 60.0,
@@ -69,9 +75,29 @@
       "Cc": 0.0,
       "Cr": 0.0,
       "e0": 0.6,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.0,
       "cv": 0.0,
-      "Calpha": 0.0
+      "Calpha": 0.0,
+      "Calpha_eps": 0.0
+    }
+  ],
+  "soil_profile": [
+    {
+      "material": "Desiccated crust",
+      "thickness": 1.5,
+      "drainage": "double"
+    },
+    {
+      "material": "Soft clay",
+      "thickness": 8.0,
+      "drainage": "double"
+    },
+    {
+      "material": "Dense sand",
+      "thickness": 8.0,
+      "drainage": "double"
     }
   ],
   "options": {
@@ -93,7 +119,7 @@
     "seed": 0,
     "variables": [
       {
-        "path": "soil_profile.1.cv",
+        "path": "materials.1.cv",
         "label": "Soft clay · cv",
         "mode": "range",
         "dist": "normal",

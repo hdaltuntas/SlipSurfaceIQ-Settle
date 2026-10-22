@@ -69,6 +69,15 @@ TEXTS = {
         "top": "Top",
         "bottom": "Bottom",
         "clay_params": "Consolidation parameters of the cohesive layers",
+        "mv_params": "Consolidation parameters of the cohesive layers described by mv",
+        "note_mv": "Primary consolidation from the coefficients of volume compressibility: "
+        "ε = mv,ur·Δσ' up to σ'p and mv·Δσ' beyond it, s = Σ ε·Δz (mv in m²/MN); secondary "
+        "compression s = Cαε·H·log10(t/t_p) with Cαε = Cα/(1 + e0), reduced by mv,ur/mv "
+        "where the final stress stays below σ'p.",
+        "note_rock": "Incompressible layers (rock and the like) do not settle; their weight "
+        "counts in the in-situ stresses and the stress increase through them is that of the "
+        "homogeneous half-space.",
+        "note_noE": "A cohesive layer with E = 0 is given no immediate settlement.",
         "stress_method": "Stress distribution",
         "imm_method": "Immediate settlement",
         "rigidity": "Foundation rigidity",
@@ -213,6 +222,14 @@ TEXTS = {
         "top": "Üst",
         "bottom": "Alt",
         "clay_params": "Kohezyonlu tabakaların konsolidasyon parametreleri",
+        "mv_params": "mv ile tanımlanan kohezyonlu tabakaların konsolidasyon parametreleri",
+        "note_mv": "Hacimsel sıkışma katsayılarıyla birincil konsolidasyon: σ'p'ye kadar "
+        "ε = mv,ur·Δσ', ötesinde mv·Δσ', s = Σ ε·Δz (mv, m²/MN); ikincil sıkışma "
+        "s = Cαε·H·log10(t/t_p), Cαε = Cα/(1 + e0); son gerilmenin σ'p'nin altında kaldığı "
+        "yerde mv,ur/mv oranında azaltılır.",
+        "note_rock": "Sıkışmaz tabakalar (kaya vb.) oturmaz; ağırlıkları yerinde gerilmelerde "
+        "sayılır, içlerindeki gerilme artışı homojen yarı sonsuz ortamınkidir.",
+        "note_noE": "E = 0 verilen kohezyonlu tabakaya ani oturma verilmez.",
         "stress_method": "Gerilme dağılımı",
         "imm_method": "Ani oturma",
         "rigidity": "Temel rijitliği",
@@ -579,8 +596,8 @@ def build_html(analysis, lang: str, figures: dict[str, bytes], img_src=None, stu
             _f(lay["bottom"]),
             _f(lay["gamma"], 1),
             _f(lay["gamma_sat"], 1),
-            _f(lay["E_MPa"], 1),
-            _f(lay["nu"]),
+            "—" if lay["behaviour"] == "incompressible" else _f(lay["E_MPa"], 1),
+            "—" if lay["behaviour"] == "incompressible" else _f(lay["nu"]),
         ]
         for i, lay in enumerate(a.profile.layers, 1)
     ]
@@ -602,7 +619,14 @@ def build_html(analysis, lang: str, figures: dict[str, bytes], img_src=None, stu
         )
     )
     clays = [
-        (i, lay) for i, lay in enumerate(a.profile.layers, 1) if lay["behaviour"] == "cohesive"
+        (i, lay)
+        for i, lay in enumerate(a.profile.layers, 1)
+        if lay["behaviour"] == "cohesive" and lay["compression"] != "mv"
+    ]
+    mv_clays = [
+        (i, lay)
+        for i, lay in enumerate(a.profile.layers, 1)
+        if lay["behaviour"] == "cohesive" and lay["compression"] == "mv"
     ]
     if clays:
         parts.append(f"<p class='lead'><b>{_esc(T['clay_params'])}</b></p>")
@@ -625,6 +649,37 @@ def build_html(analysis, lang: str, figures: dict[str, bytes], img_src=None, stu
                 ["#", T["layer"], "Cc", "Cr", "e0", "OCR", L["col_cv"], "Cα", L["col_drainage"]],
                 rows,
                 [4, 24, 8, 8, 8, 8, 14, 10, 16],
+            )
+        )
+    if mv_clays:
+        parts.append(f"<p class='lead'><b>{_esc(T['mv_params'])}</b></p>")
+        rows = [
+            [
+                i,
+                _esc(lay["name"]),
+                _f(lay["mv"], 4),
+                _f(lay["mv_ur"], 4),
+                _f(lay["OCR"]),
+                _f(lay["cv"]),
+                _f(lay["Calpha_eps"], 5),
+                L["drainage_" + lay["drainage"]],
+            ]
+            for i, lay in mv_clays
+        ]
+        parts.append(
+            _table(
+                [
+                    "#",
+                    T["layer"],
+                    "mv (m²/MN)",
+                    "mv,ur (m²/MN)",
+                    "OCR",
+                    L["col_cv"],
+                    "Cαε",
+                    L["col_drainage"],
+                ],
+                rows,
+                [4, 24, 12, 12, 8, 14, 10, 16],
             )
         )
 
@@ -827,7 +882,14 @@ def build_html(analysis, lang: str, figures: dict[str, bytes], img_src=None, stu
         parts.extend(f"<li>{_esc(warning_text(lang, w))}</li>" for w in res["warnings"])
         parts.append("</ul>")
     parts.append(f"<h2>{T['sec_notes']}</h2><ul class='note'>")
+    kinds = {(lay["behaviour"], lay["compression"]) for lay in a.profile.layers}
     notes = T["notes"] + ([T["note_emb"]] if a.embankment else [])
+    if ("cohesive", "mv") in kinds:
+        notes.append(T["note_mv"])
+    if any(behaviour == "incompressible" for behaviour, _ in kinds):
+        notes.append(T["note_rock"])
+    if any(lay["behaviour"] == "cohesive" and lay["E_MPa"] <= 0 for lay in a.profile.layers):
+        notes.append(T["note_noE"])
     parts.extend(f"<li>{_esc(n)}</li>" for n in notes)
     parts.append("</ul>")
     if study is not None and study.rows:

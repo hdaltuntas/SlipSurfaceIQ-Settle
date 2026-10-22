@@ -91,6 +91,20 @@ def primary_strain(sigma0, dsigma, sigma_p, Cc: float, Cr: float, e0: float) -> 
     return (recompression + virgin) / (1.0 + e0)
 
 
+def primary_strain_mv(sigma0, dsigma, sigma_p, mv: float, mv_ur: float) -> np.ndarray:
+    """Vertical strain of clay loaded from σ'0 by Δσ, from the coefficients of
+    volume compressibility [m²/MN]: ε = mv,ur·Δσ' up to σ'p, mv·Δσ' beyond it.
+
+    With σ'p = σ'0 (OCR = 1) it is the classic ε = mv·Δσ'.
+    """
+    s0 = np.maximum(np.atleast_1d(np.asarray(sigma0, dtype=float)), 1e-6)
+    sf = s0 + np.maximum(np.asarray(dsigma, dtype=float), 0.0)
+    sp = np.maximum(np.asarray(sigma_p, dtype=float), s0)
+    recompression = mv_ur * (np.minimum(sf, sp) - s0)
+    virgin = mv * np.maximum(sf - sp, 0.0)
+    return (recompression + virgin) / 1000.0  # m²/MN · kPa
+
+
 def secondary_strain(t, t_p: float, Calpha: float, e0: float) -> np.ndarray:
     """Secondary compression strain Cα/(1 + e0)·log10(t / t_p), zero before t_p."""
     t = np.atleast_1d(np.asarray(t, dtype=float))

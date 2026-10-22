@@ -16,6 +16,9 @@ __all__ = [
     "THEMES",
     "PLOT_PALETTE",
     "SOIL_FILL",
+    "COMPRESSION",
+    "MATERIAL_DEFAULT",
+    "MATERIAL_COLORS",
     "SHAPES",
     "STRESS_METHODS",
     "IMMEDIATE_METHODS",
@@ -32,7 +35,10 @@ SHAPES = ["rectangle", "strip", "circle", "embankment"]
 STRESS_METHODS = ["boussinesq", "two_to_one"]
 IMMEDIATE_METHODS = ["elastic", "schmertmann"]
 RIGIDITY = ["flexible", "rigid"]
-BEHAVIOURS = ["granular", "cohesive"]
+BEHAVIOURS = ["granular", "cohesive", "incompressible"]
+#: How the consolidation of a cohesive material is described: compression
+#: indices (Cc, Cr, e0) or coefficients of volume compressibility (mv, mv,ur)
+COMPRESSION = ["index", "mv"]
 DRAINAGE = ["double", "single"]
 
 # --- Interface theme and plot palette --------------------------------------
@@ -95,11 +101,50 @@ PLOT_PALETTE = dict(
     allowable="#B0413E",
 )
 
-# Fill colours of the two soil behaviours in the schematic (theme-dependent,
-# since a light sandy tone reads poorly on a dark background).
+# Fill colours of the soil behaviours in the schematic, for layers whose
+# material carries no colour of its own (theme-dependent, since a light sandy
+# tone reads poorly on a dark background).
 SOIL_FILL = {
-    "light": {"granular": "#E3C98F", "cohesive": "#A7B8A0"},
-    "dark": {"granular": "#8A7250", "cohesive": "#5E6E58"},
+    "light": {"granular": "#E3C98F", "cohesive": "#A7B8A0", "incompressible": "#B9B4AE"},
+    "dark": {"granular": "#8A7250", "cohesive": "#5E6E58", "incompressible": "#6B665F"},
+}
+
+#: Colours offered to new materials, in turn (muted, readable in both themes)
+MATERIAL_COLORS = [
+    "#E3C98F",
+    "#D9B36C",
+    "#A7B8A0",
+    "#8FA88A",
+    "#C9A0A0",
+    "#B9B4AE",
+    "#9DB4CC",
+    "#C7B39A",
+    "#A8A1C4",
+    "#D4C9A8",
+]
+
+#: Every property a material may have, with its default. E [MPa] is the drained
+#: modulus of a granular material and the undrained modulus of a cohesive one
+#: (0: no immediate settlement); mv, mv_ur in m²/MN; cv in m²/year;
+#: OCR = σ'p / σ'v0; Calpha_eps = Cα / (1 + e0), for the mv description.
+MATERIAL_DEFAULT = {
+    "name": "Material",
+    "color": "",
+    "behaviour": "granular",
+    "compression": "index",
+    "gamma": 18.0,
+    "gamma_sat": 19.0,
+    "E": 10.0,
+    "nu": 0.30,
+    "Cc": 0.0,
+    "Cr": 0.0,
+    "e0": 0.6,
+    "OCR": 1.0,
+    "mv": 0.0,
+    "mv_ur": 0.0,
+    "cv": 0.0,
+    "Calpha": 0.0,
+    "Calpha_eps": 0.0,
 }
 SOIL_FILL["paper"] = SOIL_FILL["light"]
 
@@ -129,45 +174,29 @@ DEFAULT_CONFIG = {
         "depth": 2.0,  # below ground surface [m]
         "gamma_water": 9.81,  # [kN/m³]
     },
-    # Layers from the ground surface down. E [MPa] is the drained modulus of
-    # a granular layer and the undrained modulus of a cohesive one; cv in
-    # m²/year; OCR = σ'p / σ'v0.
-    "soil_profile": [
+    # The materials, and the layers that use them from the ground surface down.
+    # Drainage belongs to the layer, since it depends on what lies around it.
+    "materials": [
         {
+            **MATERIAL_DEFAULT,
             "name": "Fill",
-            "thickness": 1.5,
-            "behaviour": "granular",
+            "color": "#D9B36C",
             "gamma": 18.0,
             "gamma_sat": 19.0,
             "E": 10.0,
-            "nu": 0.30,
-            "Cc": 0.0,
-            "Cr": 0.0,
-            "e0": 0.6,
-            "OCR": 1.0,
-            "cv": 0.0,
-            "Calpha": 0.0,
-            "drainage": "double",
         },
         {
+            **MATERIAL_DEFAULT,
             "name": "Medium dense sand",
-            "thickness": 3.5,
-            "behaviour": "granular",
+            "color": "#E3C98F",
             "gamma": 18.5,
             "gamma_sat": 20.0,
             "E": 25.0,
-            "nu": 0.30,
-            "Cc": 0.0,
-            "Cr": 0.0,
-            "e0": 0.6,
-            "OCR": 1.0,
-            "cv": 0.0,
-            "Calpha": 0.0,
-            "drainage": "double",
         },
         {
+            **MATERIAL_DEFAULT,
             "name": "Soft clay",
-            "thickness": 6.0,
+            "color": "#A7B8A0",
             "behaviour": "cohesive",
             "gamma": 17.0,
             "gamma_sat": 17.5,
@@ -177,26 +206,27 @@ DEFAULT_CONFIG = {
             "Cr": 0.05,
             "e0": 1.05,
             "OCR": 1.3,
+            "mv": 1.0,
+            "mv_ur": 0.15,
             "cv": 1.5,
             "Calpha": 0.010,
-            "drainage": "double",
+            "Calpha_eps": 0.005,
         },
         {
+            **MATERIAL_DEFAULT,
             "name": "Dense sand",
-            "thickness": 10.0,
-            "behaviour": "granular",
+            "color": "#C7B39A",
             "gamma": 19.5,
             "gamma_sat": 21.0,
             "E": 60.0,
-            "nu": 0.30,
-            "Cc": 0.0,
-            "Cr": 0.0,
             "e0": 0.5,
-            "OCR": 1.0,
-            "cv": 0.0,
-            "Calpha": 0.0,
-            "drainage": "double",
         },
+    ],
+    "soil_profile": [
+        {"material": "Fill", "thickness": 1.5, "drainage": "double"},
+        {"material": "Medium dense sand", "thickness": 3.5, "drainage": "double"},
+        {"material": "Soft clay", "thickness": 6.0, "drainage": "double"},
+        {"material": "Dense sand", "thickness": 10.0, "drainage": "double"},
     ],
     "options": {
         "stress_method": "boussinesq",

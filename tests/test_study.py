@@ -31,7 +31,7 @@ def test_latin_hypercube_puts_one_sample_in_each_stratum():
 
 
 def test_a_lognormal_variable_has_the_mean_and_cov_it_was_given():
-    var = StudyVariable("soil_profile.2.Cc", "dist", dist="lognormal", mean=0.3, cov=0.25)
+    var = StudyVariable("materials.2.Cc", "dist", dist="lognormal", mean=0.3, cov=0.25)
     values = var.ppf((np.arange(20000) + 0.5) / 20000)
     assert values.mean() == pytest.approx(0.3, rel=0.01)
     assert values.std() / values.mean() == pytest.approx(0.25, rel=0.02)
@@ -49,7 +49,7 @@ def test_a_sweep_has_one_row_per_point_per_range_variable():
     variables = [
         StudyVariable("foundation.q", "range", 80, 120, n_points=5),
         StudyVariable("foundation.B", "range", 6, 10, n_points=3),
-        StudyVariable("soil_profile.2.Cc", "dist", dist="normal", mean=0.3, cov=0.1),
+        StudyVariable("materials.2.Cc", "dist", dist="normal", mean=0.3, cov=0.1),
     ]
     rows = sample(variables, "oat")
     assert len(rows) == 8
@@ -72,27 +72,25 @@ def test_impossible_variables_are_refused(bad):
 
 def test_the_study_offers_clay_inputs_only_for_clay():
     paths = [path for path, _ in available_variables(BASE)]
-    assert "soil_profile.2.Cc" in paths  # the soft clay
-    assert "soil_profile.1.Cc" not in paths  # a sand
+    assert "materials.2.Cc" in paths  # the soft clay
+    assert "materials.1.Cc" not in paths  # a sand
     assert "foundation.L" in paths
     L = TRANSLATIONS["tr"]
-    assert pretty_label(BASE, "soil_profile.2.Cc", L) == "Soft clay · Cc"
+    assert pretty_label(BASE, "materials.2.Cc", L) == "Soft clay · Cc"
     assert pretty_label(BASE, "foundation.q", L) == "Temel · q"
 
 
 def test_a_variable_the_project_has_not_got_is_refused():
     with pytest.raises(ValueError):
-        Study(BASE, [StudyVariable("soil_profile.9.E", "range", 1, 2)], "lhs", 5)
+        Study(BASE, [StudyVariable("materials.9.E", "range", 1, 2)], "lhs", 5)
 
 
 @pytest.fixture(scope="module")
 def mc():
     variables = [
         StudyVariable("foundation.q", "dist", dist="normal", mean=100, cov=0.15, label="q"),
-        StudyVariable(
-            "soil_profile.2.Cc", "dist", dist="lognormal", mean=0.32, cov=0.3, label="Cc"
-        ),
-        StudyVariable("soil_profile.3.E", "range", 40, 80, label="E sand"),
+        StudyVariable("materials.2.Cc", "dist", dist="lognormal", mean=0.32, cov=0.3, label="Cc"),
+        StudyVariable("materials.3.E", "range", 40, 80, label="E sand"),
     ]
     s = Study(BASE, variables, "lhs", 120, seed=7)
     done = []
@@ -110,8 +108,8 @@ def test_a_study_runs_every_sample_and_reports_progress(mc):
 def test_the_load_and_the_compressibility_drive_the_settlement(mc):
     rho = mc.summary["spearman"]["s_total"]
     assert rho["foundation.q"] > 0.5
-    assert rho["soil_profile.2.Cc"] > 0.2
-    assert abs(rho["soil_profile.3.E"]) < rho["foundation.q"]
+    assert rho["materials.2.Cc"] > 0.2
+    assert abs(rho["materials.3.E"]) < rho["foundation.q"]
 
 
 def test_the_probability_of_exceedance_is_counted(mc):
@@ -143,7 +141,7 @@ def test_a_cancelled_study_keeps_what_it_has(mc):
 
 
 def test_an_impossible_sample_is_an_error_row_not_a_crash():
-    var = StudyVariable("soil_profile.2.E", "range", -5.0, 5.0, n_points=3)
+    var = StudyVariable("materials.3.E", "range", -5.0, 5.0, n_points=3)  # a sand
     s = Study(BASE, [var], "oat")
     s.run()
     errors = [row for row in s.rows if row["error"]]

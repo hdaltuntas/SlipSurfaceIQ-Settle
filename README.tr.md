@@ -2,7 +2,7 @@
 
 # SlipSurfaceIQ Settle
 
-**Sığ temellerin ve dolguların oturma analizi, masaüstü arayüzüyle — sürüm 2026.0.0**
+**Sığ temellerin ve dolguların oturma analizi, masaüstü arayüzüyle — sürüm 2026.0.1**
 
 [![CI](https://github.com/hdaltuntas/SlipSurfaceIQ-Settle/actions/workflows/ci.yml/badge.svg)](https://github.com/hdaltuntas/SlipSurfaceIQ-Settle/actions/workflows/ci.yml)
 
@@ -45,6 +45,10 @@ kaybolmadan istendiği an değiştirilir.
 |---|---|
 | ![Dolgu](docs/screenshots/embankment_tr.png) | ![Tarama](docs/screenshots/study_oat_tr.png) |
 
+| Malzeme tanımı: mv ile kil | Zemin profili: malzemeler ve tabakalar |
+|---|---|
+| ![Malzemeler](docs/screenshots/materials_tr.png) | ![Zemin profili](docs/screenshots/soil_tr.png) |
+
 ## Kurulum ve çalıştırma
 
 **Kurulum paketleri** (Python gerekmez): Windows MSI, Ubuntu DEB, Fedora / openSUSE RPM ve
@@ -80,15 +84,19 @@ en kullanışlı görünümünü ortada açar.
 2. **Temel / Dolgu** — şekil, boyutlar, temel derinliği Df, taban basıncı q (ya da dolgu
    geometrisi ve birim hacim ağırlığı) ve su tablası. Yalnız seçilen şekle uyan girdiler
    gösterilir.
-3. **Zemin Profili** — tabakalar çizimin altındaki tabloda, yüzeyden aşağı düzenlenir.
-   Yalnız kilin kullandığı sütunlar granüler tabakada gölgelidir.
+3. **Zemin Profili** — yüzeyden aşağı tabakalar; her biri bir malzeme, bir kalınlık ve
+   kil için drenaj. Malzemelerin kendisi **Özellikler › Malzemeleri Tanımla…** (Ctrl+M)
+   penceresinde tanımlanır: granüler, kohezyonlu ya da sıkışmaz (kaya vb.). Kohezyonlu
+   malzeme ya sıkışma indisleriyle (Cc, Cr, e0) ya da hacimsel sıkışma katsayılarıyla
+   (mv, mv,ur) tanımlanır; OCR, cv ve ikincil sıkışma ile birlikte.
 4. **Seçenekler** — gerilme dağılımı, ani oturma yöntemi, esnek ya da rijit temel, alt
    tabaka kalınlığı, etki derinliği, tasarım ömrü, krip; izin verilen oturma ve
    distorsiyon.
 5. **Sonuçlar** — kontrolleriyle özet kartları, tam metin çıktısı ve yedi şekil.
-6. **Çalışma** — soldaki panelde örnekleme yöntemi, örnek sayısı ve tohum; alttaki
-   tabloda değişkenler (bir aralık ya da dağılımla bir girdi); sonuçlar tarama,
-   histogram, saçılım ya da tornado grafiği, özet ve örnek tablosu olarak.
+6. **Çalışma** — soldaki panelde örnekleme yöntemi, örnek sayısı ve tohum;
+   **Özellikler › Çalışma Değişkenleri…** (Ctrl+K) penceresinde değişkenler (bir aralık
+   ya da dağılımla bir girdi); sonuçlar tarama, histogram, saçılım ya da tornado grafiği,
+   özet ve örnek tablosu olarak.
 
 Analiz birkaç milisaniye sürdüğünden sonuçlar ve şekiller girdideki her değişikliği izler.
 Yalnız **F5** ile hesaplamak için **Analiz › Otomatik yeniden hesapla**'yı kapatın; eskiyen
@@ -101,6 +109,7 @@ eder.
 | F6 | Çalışmayı başlat |
 | Esc | Çalışmayı iptal et |
 | Ctrl+N / O / S | Yeni / aç / kaydet |
+| Ctrl+M / Ctrl+K | Malzemeleri / çalışma değişkenlerini tanımla |
 | Ctrl+Z / Ctrl+Y | Her girdide geri al / yinele |
 | Ctrl+P | PDF rapor |
 | Ctrl+E | Geçerli şekli dışa aktar (PNG, SVG, PDF) |

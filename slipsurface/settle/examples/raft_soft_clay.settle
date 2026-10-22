@@ -1,6 +1,6 @@
 {
   "format": "slipsurface-settle",
-  "version": "0.1",
+  "version": "0.2",
   "project_info": {
     "title": "Project: Raft on soft clay",
     "analyst": ""
@@ -24,12 +24,12 @@
     "depth": 2.0,
     "gamma_water": 9.81
   },
-  "soil_profile": [
+  "materials": [
     {
       "name": "Fill",
+      "color": "#E3C98F",
       "behaviour": "granular",
-      "drainage": "double",
-      "thickness": 1.5,
+      "compression": "index",
       "gamma": 18.0,
       "gamma_sat": 19.0,
       "E": 10.0,
@@ -37,15 +37,18 @@
       "Cc": 0.0,
       "Cr": 0.0,
       "e0": 0.6,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.0,
       "cv": 0.0,
-      "Calpha": 0.0
+      "Calpha": 0.0,
+      "Calpha_eps": 0.0
     },
     {
       "name": "Medium dense sand",
+      "color": "#D9B36C",
       "behaviour": "granular",
-      "drainage": "double",
-      "thickness": 3.5,
+      "compression": "index",
       "gamma": 18.5,
       "gamma_sat": 20.0,
       "E": 25.0,
@@ -53,15 +56,18 @@
       "Cc": 0.0,
       "Cr": 0.0,
       "e0": 0.6,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.0,
       "cv": 0.0,
-      "Calpha": 0.0
+      "Calpha": 0.0,
+      "Calpha_eps": 0.0
     },
     {
       "name": "Soft clay",
+      "color": "#A7B8A0",
       "behaviour": "cohesive",
-      "drainage": "double",
-      "thickness": 6.0,
+      "compression": "index",
       "gamma": 17.0,
       "gamma_sat": 17.5,
       "E": 6.0,
@@ -69,15 +75,18 @@
       "Cc": 0.32,
       "Cr": 0.05,
       "e0": 1.05,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.3,
       "cv": 1.5,
-      "Calpha": 0.01
+      "Calpha": 0.01,
+      "Calpha_eps": 0.0
     },
     {
       "name": "Dense sand",
+      "color": "#C7B39A",
       "behaviour": "granular",
-      "drainage": "double",
-      "thickness": 10.0,
+      "compression": "index",
       "gamma": 19.5,
       "gamma_sat": 21.0,
       "E": 60.0,
@@ -85,9 +94,34 @@
       "Cc": 0.0,
       "Cr": 0.0,
       "e0": 0.5,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.0,
       "cv": 0.0,
-      "Calpha": 0.0
+      "Calpha": 0.0,
+      "Calpha_eps": 0.0
+    }
+  ],
+  "soil_profile": [
+    {
+      "material": "Fill",
+      "thickness": 1.5,
+      "drainage": "double"
+    },
+    {
+      "material": "Medium dense sand",
+      "thickness": 3.5,
+      "drainage": "double"
+    },
+    {
+      "material": "Soft clay",
+      "thickness": 6.0,
+      "drainage": "double"
+    },
+    {
+      "material": "Dense sand",
+      "thickness": 10.0,
+      "drainage": "double"
     }
   ],
   "options": {
@@ -120,7 +154,7 @@
         "n_points": 5
       },
       {
-        "path": "soil_profile.2.Cc",
+        "path": "materials.2.Cc",
         "label": "Soft clay · Cc",
         "mode": "dist",
         "dist": "lognormal",

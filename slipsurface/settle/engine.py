@@ -11,13 +11,18 @@ level and the soil layers, `SettlementAnalysis.run()` works out
     * the influence depth, where Δσ falls to a fraction of σ'v0
     * immediate settlement: layered elastic (Steinbrenner) in every layer, or
       Schmertmann (1978) in the granular layers and elastic in the cohesive
-    * primary consolidation settlement of the cohesive layers from Cc, Cr,
-      e0 and σ'p, sublayer by sublayer
-    * secondary compression up to the design life, from Cα
+    * primary consolidation settlement of the cohesive layers, sublayer by
+      sublayer, from Cc, Cr, e0 and σ'p — or from the coefficients of volume
+      compressibility mv and mv,ur
+    * secondary compression up to the design life, from Cα (or Cαε)
+    * nothing at all in an incompressible layer (rock and the like), which
+      still carries its weight into the stresses below
     * the time–settlement curve (Terzaghi, each clay layer draining on its own)
     * angular distortion between the centre and the edge, and the checks
       against the allowable total settlement and distortion
 
+The layers name a material (``materials``) and give their own thickness and
+drainage; rows that carry the properties themselves are read as they are.
 The profile is split into thin sublayers below the foundation base; every
 quantity is evaluated at the sublayer mid-depths, so the per-depth results
 feed the figures directly.
@@ -38,8 +43,10 @@ from . import consolidation as cons
 from . import stress
 from .config import (
     BEHAVIOURS,
+    COMPRESSION,
     DEFAULT_CONFIG,
     DRAINAGE,
+    MATERIAL_DEFAULT,
     IMMEDIATE_METHODS,
     RIGIDITY,
     SHAPES,
@@ -82,6 +89,48 @@ def _message(key: str, **params) -> tuple[str, dict[str, Any]]:
 # --------------------------------------------------------------------------- #
 #  Soil profile
 # --------------------------------------------------------------------------- #
+
+
+def material_table(cfg: dict[str, Any]) -> dict[str, dict]:
+    """The project's materials by name, every property filled in."""
+    out = {}
+    for material in cfg.get("materials") or []:
+        if isinstance(material, dict):
+            name = str(material.get("name") or "").strip()
+            if name:
+                out[name] = {**MATERIAL_DEFAULT, **material, "name": name}
+    return out
+
+
+def resolve_layers(cfg: dict[str, Any]) -> list[dict]:
+    """The soil profile with each layer's material properties filled in.
+
+    A row naming a ``material`` takes that material's properties and keeps its
+    own thickness and drainage; a row without one carries its properties itself
+    (the project files of 2026.0.0 and older scripts).
+    """
+    materials = material_table(cfg)
+    layers = []
+    for i, row in enumerate(cfg.get("soil_profile") or []):
+        if not isinstance(row, dict):
+            continue
+        if "material" in row:
+            name = str(row.get("material") or "").strip()
+            if name not in materials:
+                if _num(row, "thickness", 0.0) > 0:
+                    raise SettleError("err_material", layer=i + 1, name=name or "—")
+                continue
+            layers.append(
+                {
+                    **materials[name],
+                    "material": name,
+                    "thickness": row.get("thickness"),
+                    "drainage": row.get("drainage", "double"),
+                }
+            )
+        else:
+            layers.append({**MATERIAL_DEFAULT, **row})
+    return layers
 
 
 class Profile:
@@ -205,8 +254,7 @@ class SettlementAnalysis:
 
         gamma_w = _num(w, "gamma_water", 9.81)
         layers = []
-        for row in cfg.get("soil_profile") or []:
-            layer = {**base["soil_profile"][0], **row}
+        for layer in resolve_layers(cfg):
             thickness = _num(layer, "thickness", 0.0)
             if thickness <= 0:
                 continue
@@ -217,10 +265,13 @@ class SettlementAnalysis:
         if self.Df >= self.profile.depth:
             raise SettleError("err_depth")
         for layer in layers:
-            if layer["bottom"] <= self.Df:
+            if layer["bottom"] <= self.Df or layer["behaviour"] == "incompressible":
                 continue
-            if layer["E"] <= 0:
-                raise SettleError("err_layer_E", name=layer["name"])
+            if layer["E_MPa"] <= 0:
+                if layer["behaviour"] == "granular":
+                    raise SettleError("err_layer_E", name=layer["name"])
+                # a clay described by its consolidation only: no immediate part
+                self.warnings.append(_message("warn_no_E", name=layer["name"]))
 
     def _read_embankment(self, e: dict) -> None:
         """An embankment: a trapezoidal fill on the ground surface."""
@@ -248,33 +299,56 @@ class SettlementAnalysis:
     def _read_layer(self, row: dict, thickness: float, gamma_w: float) -> dict:
         name = str(row.get("name") or "").strip() or "Layer"
         behaviour = row.get("behaviour") if row.get("behaviour") in BEHAVIOURS else "granular"
+        compression = row.get("compression") if row.get("compression") in COMPRESSION else "index"
+        E_MPa = _num(row, "E", 10.0)
         layer = {
             "name": name,
+            "material": str(row.get("material") or name),
+            "color": str(row.get("color") or ""),
             "thickness": thickness,
             "behaviour": behaviour,
+            "compression": compression if behaviour == "cohesive" else "index",
             "gamma": _num(row, "gamma", 18.0),
             "gamma_sat": _num(row, "gamma_sat", 19.0),
-            "E": _num(row, "E", 10.0) * 1000.0,  # MPa -> kPa
-            "E_MPa": _num(row, "E", 10.0),
+            # kPa; an incompressible layer, or a clay without a modulus, adds
+            # nothing to the immediate settlement: it is infinitely stiff there
+            "E": E_MPa * 1000.0 if behaviour != "incompressible" and E_MPa > 0 else math.inf,
+            "E_MPa": E_MPa,
             "nu": _num(row, "nu", 0.3),
             "Cc": max(0.0, _num(row, "Cc", 0.0)),
             "Cr": max(0.0, _num(row, "Cr", 0.0)),
             "e0": _num(row, "e0", 1.0),
             "OCR": _num(row, "OCR", 1.0),
+            "mv": max(0.0, _num(row, "mv", 0.0)),
+            "mv_ur": max(0.0, _num(row, "mv_ur", 0.0)),
             "cv": max(0.0, _num(row, "cv", 0.0)),
             "Calpha": max(0.0, _num(row, "Calpha", 0.0)),
+            "Calpha_eps": max(0.0, _num(row, "Calpha_eps", 0.0)),
             "drainage": row.get("drainage") if row.get("drainage") in DRAINAGE else "double",
         }
         if layer["gamma"] <= 0 or layer["gamma_sat"] <= gamma_w:
             raise SettleError("err_gamma", name=name)
-        if not 0.0 <= layer["nu"] <= 0.5:
+        if behaviour != "incompressible" and not 0.0 <= layer["nu"] <= 0.5:
             raise SettleError("err_layer_nu", name=name)
+        if behaviour == "incompressible":
+            layer["nu"] = min(max(layer["nu"], 0.0), 0.5)
         if behaviour == "cohesive":
-            if layer["e0"] <= 0:
+            if layer["compression"] == "index" and layer["e0"] <= 0:
                 raise SettleError("err_layer_e0", name=name)
             if layer["OCR"] < 1.0:
                 self.warnings.append(_message("warn_ocr", name=name))
                 layer["OCR"] = 1.0
+        # One description of the clay for the rest of the analysis: the strain
+        # rate of secondary compression per log cycle, and its share on the
+        # recompression side of σ'p (Cα/Cc is a soil constant, Mesri).
+        if layer["compression"] == "mv":
+            layer["c_sec"] = layer["Calpha_eps"]
+            layer["oc_factor"] = layer["mv_ur"] / layer["mv"] if layer["mv"] > 0 else 1.0
+            layer["has_c"] = layer["mv"] > 0 or layer["mv_ur"] > 0
+        else:
+            layer["c_sec"] = layer["Calpha"] / (1.0 + layer["e0"]) if layer["e0"] > -1 else 0.0
+            layer["oc_factor"] = layer["Cr"] / layer["Cc"] if layer["Cc"] > 0 else 1.0
+            layer["has_c"] = layer["Cc"] > 0 or layer["Cr"] > 0
         return layer
 
     # ------------------------------------------------------------------ geometry
@@ -373,6 +447,7 @@ class SettlementAnalysis:
         zb_mid, zb_top, zb_bot = mid - self.Df, sub["top"] - self.Df, sub["bot"] - self.Df
         layers = P.layers
         cohesive = np.array([layers[i]["behaviour"] == "cohesive" for i in lay])
+        granular = np.array([layers[i]["behaviour"] == "granular" for i in lay])
 
         # ---- stresses
         sig_v0 = P.total_stress(mid)
@@ -407,9 +482,7 @@ class SettlementAnalysis:
         if not compensated and centre[-1] >= 0.1 * sig_eff[-1]:
             self.warnings.append(_message("warn_below_profile", depth=P.depth))
 
-        cc = np.array([layers[i]["Cc"] for i in lay])
-        cr = np.array([layers[i]["Cr"] for i in lay])
-        compressible = cohesive & ((cc > 0) | (cr > 0))
+        compressible = cohesive & np.array([layers[i]["has_c"] for i in lay], dtype=bool)
         self._ctx = {
             "zb_top": zb_top,
             "zb_bot": zb_bot,
@@ -417,6 +490,7 @@ class SettlementAnalysis:
             "dz": dz,
             "lay": lay,
             "cohesive": cohesive,
+            "granular": granular,
             "compressible": compressible,
             "sig_eff": sig_eff,
             "sig_p": sig_p,
@@ -447,7 +521,7 @@ class SettlementAnalysis:
                 "cv": layer["cv"],
             }
             if layer["behaviour"] == "cohesive":
-                has_c = layer["Cc"] > 0 or layer["Cr"] > 0
+                has_c = layer["has_c"]
                 if not has_c:
                     self.warnings.append(_message("warn_no_cc", name=layer["name"]))
                 h_dr = cons.drainage_path(loaded, layer["drainage"])
@@ -458,15 +532,14 @@ class SettlementAnalysis:
                     info["t_p"] = cons.time_for(cons.U_END_OF_PRIMARY, layer["cv"], h_dr)
                 elif has_c:
                     self.warnings.append(_message("warn_no_cv", name=layer["name"]))
-                if layer["Calpha"] > 0 and not compensated:
+                if layer["c_sec"] > 0 and not compensated:
                     if math.isfinite(info["t_p"]):
                         strain = cons.secondary_strain(
-                            self.design_life, info["t_p"], layer["Calpha"], layer["e0"]
+                            self.design_life, info["t_p"], layer["c_sec"], 0.0
                         )[0]
                         # Cα/Cc is a soil constant (Mesri): where the load leaves the
                         # clay over-consolidated, creep follows the recompression line.
-                        oc_factor = layer["Cr"] / layer["Cc"] if layer["Cc"] > 0 else 1.0
-                        self._ctx["creep"].append((rows & active, strain, oc_factor))
+                        self._ctx["creep"].append((rows & active, strain, layer["oc_factor"]))
                     else:
                         self.warnings.append(_message("warn_no_tp", name=layer["name"]))
             layer_rows.append(info)
@@ -475,7 +548,7 @@ class SettlementAnalysis:
         schm = None
         if self.immediate_method == "schmertmann" and not compensated:
             schm = self._schmertmann(q_net, sigma_base_eff, zb_mid, dz, lay)
-            zone = (~cohesive) & (zb_mid < schm["z_end"])
+            zone = granular & (zb_mid < schm["z_end"])
             self._ctx.update(
                 schm=schm,
                 zone=zone,
@@ -604,12 +677,18 @@ class SettlementAnalysis:
             ratio = (
                 float(np.sum(elastic[c["zone"]])) / c["centre_el"] if c["centre_el"] > 0 else 1.0
             )
-            immediate = np.where(c["cohesive"], immediate, c["schm"]["s"] * ratio)
+            immediate = np.where(c["granular"], c["schm"]["s"] * ratio, immediate)
 
         strain = np.zeros_like(dsig)
         for i, layer in enumerate(self.profile.layers):
             rows = (c["lay"] == i) & c["compressible"]
-            if rows.any():
+            if not rows.any():
+                continue
+            if layer["compression"] == "mv":
+                strain[rows] = cons.primary_strain_mv(
+                    c["sig_eff"][rows], dsig[rows], c["sig_p"][rows], layer["mv"], layer["mv_ur"]
+                )
+            else:
                 strain[rows] = cons.primary_strain(
                     c["sig_eff"][rows],
                     dsig[rows],
@@ -650,8 +729,10 @@ class SettlementAnalysis:
 
     # ------------------------------------------------------------------ parts
     def _layer_method(self, layer: dict) -> str:
+        if layer["behaviour"] == "incompressible":
+            return "incompressible"
         if layer["behaviour"] == "cohesive":
-            return "cohesive"
+            return "cohesive_mv" if layer["compression"] == "mv" else "cohesive"
         return "schmertmann" if self.immediate_method == "schmertmann" else "elastic"
 
     def schmertmann_shape(self) -> dict[str, float]:
@@ -718,9 +799,7 @@ class SettlementAnalysis:
                 primary += cons.degree_at(t, layer["cv"], info["h_dr"]) * s_c
             s_s_life = float(np.sum(secondary[rows]))
             if s_s_life > 0:
-                life = cons.secondary_strain(
-                    self.design_life, info["t_p"], layer["Calpha"], layer["e0"]
-                )[0]
-                now = cons.secondary_strain(t, info["t_p"], layer["Calpha"], layer["e0"])
+                life = cons.secondary_strain(self.design_life, info["t_p"], layer["c_sec"], 0.0)[0]
+                now = cons.secondary_strain(t, info["t_p"], layer["c_sec"], 0.0)
                 creep += s_s_life * now / life
         return {"t": t, "s": primary + creep, "primary": primary}

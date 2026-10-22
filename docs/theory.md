@@ -104,6 +104,22 @@ For each clay sublayer, at each evaluation point, with σ'f = σ'v0 + Δσ:
 No Skempton–Bjerrum correction is applied; the one-dimensional value is conservative for
 over-consolidated clay under a narrow footing.
 
+**By the coefficients of volume compressibility.** A clay may instead be described by
+mv and mv,ur [m²/MN] — the slope of the virgin and of the unloading–reloading branch:
+
+    ε = mv,ur·(min(σ'f, σ'p) − σ'v0) + mv·max(σ'f − σ'p, 0)
+    s = Σ ε · Δz
+
+With OCR = 1 (σ'p = σ'v0) this is the classic s = Σ mv·Δσ'·Δz. mv itself depends on the
+stress level; it should be the value measured over the stress range the layer actually
+sees (σ'v0 to σ'v0 + Δσ).
+
+**Incompressible units.** Rock, or any unit taken as incompressible, gets no immediate,
+primary or secondary settlement. Its weight still counts in the in-situ stresses, and the
+stress increase through and below it is still that of the homogeneous half-space (the
+stiffer layer's concentrating or spreading effect is not modelled). A clay with E = 0 is
+given no immediate settlement — consolidation only.
+
 ## 7. Time
 
 Terzaghi's average degree of consolidation for a uniform initial excess pore pressure,
@@ -118,7 +134,8 @@ A clay without cv is taken as consolidating at once.
 From the end of primary consolidation, taken as U = 95 % (t_p), to the design life:
 s = Cα/(1 + e0)·Δz·log10(t/t_p). Since Cα/Cc is a soil constant (Mesri), where σ'f stays
 below σ'p the clay creeps along the recompression line and Cα·Cr/Cc is used instead. e0 is
-used for (1 + e_p).
+used for (1 + e_p). A clay described by mv takes the strain rate Cαε = Cα/(1 + e0) directly,
+s = Cαε·Δz·log10(t/t_p), reduced by mv,ur/mv below σ'p.
 
 ## 9. Rigid foundation, distortion, checks
 

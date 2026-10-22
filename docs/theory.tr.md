@@ -96,6 +96,21 @@ Her kil alt tabakası için, her değerlendirme noktasında, σ'f = σ'v0 + Δσ
 Skempton–Bjerrum düzeltmesi uygulanmaz; bir boyutlu değer, dar bir temel altındaki aşırı konsolide kil için güvenli
 tarafta kalır.
 
+**Hacimsel sıkışma katsayılarıyla.** Kil, bunun yerine mv ve mv,ur [m²/MN] ile — bakir ve
+boşaltma–yeniden yükleme kollarının eğimiyle — tanımlanabilir:
+
+    ε = mv,ur·(min(σ'f, σ'p) − σ'v0) + mv·max(σ'f − σ'p, 0)
+    s = Σ ε · Δz
+
+OCR = 1 (σ'p = σ'v0) iken bu klasik s = Σ mv·Δσ'·Δz bağıntısıdır. mv gerilme düzeyine
+bağlıdır; tabakanın gerçekten gördüğü gerilme aralığında (σ'v0'dan σ'v0 + Δσ'ya) ölçülen
+değer olmalıdır.
+
+**Sıkışmaz birimler.** Kaya ya da sıkışmaz kabul edilen herhangi bir birim ani, birincil ve
+ikincil oturma almaz. Ağırlığı yerinde gerilmelerde yine sayılır; içindeki ve altındaki
+gerilme artışı yine homojen yarı sonsuz ortamınkidir (rijit tabakanın gerilmeyi yoğunlaştırma
+ya da yayma etkisi modellenmez). E = 0 verilen kile ani oturma verilmez — yalnız konsolidasyon.
+
 ## 7. Zaman
 
 Düzgün başlangıç aşırı boşluk suyu basıncı için Terzaghi'nin ortalama konsolidasyon derecesi,
@@ -108,7 +123,8 @@ kilin hemen konsolide olduğu varsayılır.
 
 Birincil konsolidasyonun sonundan (U = %95, t_p) tasarım ömrüne kadar:
 s = Cα/(1 + e0)·Δz·log10(t/t_p). Cα/Cc bir zemin sabiti olduğundan (Mesri), σ'f değeri σ'p'nin altında kaldığı yerde kil
-yeniden sıkışma doğrusu boyunca sünme yapar ve onun yerine Cα·Cr/Cc kullanılır. (1 + e_p) için e0 kullanılır.
+yeniden sıkışma doğrusu boyunca sünme yapar ve onun yerine Cα·Cr/Cc kullanılır. (1 + e_p) için e0 kullanılır. mv ile tanımlanan kil doğrudan Cαε = Cα/(1 + e0) oranını kullanır,
+s = Cαε·Δz·log10(t/t_p); σ'p'nin altında mv,ur/mv oranında azaltılır.
 
 ## 9. Rijit temel, distorsiyon, kontroller
 

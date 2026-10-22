@@ -288,3 +288,110 @@ def test_clay_without_its_properties_is_warned_about():
 def test_a_shallow_profile_is_warned_about():
     res = SettlementAnalysis(cfg(soil_profile=[layer(thickness=4.0)])).run()
     assert any(key == "warn_below_profile" for key, _ in res["warnings"])
+
+
+# --------------------------------------------------------------------------- #
+#  Materials: clays by mv, incompressible units, clays without a modulus
+# --------------------------------------------------------------------------- #
+
+
+def _default_cfg():
+    from slipsurface.settle import forms
+
+    return forms.to_config(forms.defaults())
+
+
+def _run(cfg):
+    a = SettlementAnalysis(cfg)
+    a.run()
+    return a
+
+
+def test_mv_consolidation_is_mv_times_the_stress_increase():
+    cfg = _default_cfg()
+    cfg["materials"][2].update(compression="mv", mv=0.8, mv_ur=0.1, OCR=1.0)
+    res = _run(cfg).results
+    sub = res["sub"]
+    rows = (sub["layer"] == 2) & sub["active"]
+    hand = np.sum(0.8 * sub["dsigma"]["center"][rows] / 1000.0 * sub["dz"][rows]) * 1000.0
+    assert res["points"]["center"]["consolidation"] == pytest.approx(hand, rel=1e-12)
+
+
+def test_mv_ur_applies_below_the_preconsolidation_stress():
+    cfg = _default_cfg()
+    cfg["materials"][2].update(compression="mv", mv=0.8, mv_ur=0.1, OCR=1.3)
+    res = _run(cfg).results
+    sub = res["sub"]
+    rows = (sub["layer"] == 2) & sub["active"]
+    s0, ds = sub["sigma_eff"][rows], sub["dsigma"]["center"][rows]
+    sp = 1.3 * s0
+    eps = np.where(s0 + ds <= sp, 0.1 * ds, 0.1 * (sp - s0) + 0.8 * (s0 + ds - sp)) / 1000.0
+    assert res["points"]["center"]["consolidation"] == pytest.approx(
+        np.sum(eps * sub["dz"][rows]) * 1000.0, rel=1e-12
+    )
+    # a stiff reloading branch settles less than the virgin line alone
+    cfg["materials"][2]["OCR"] = 1.0
+    assert (
+        _run(cfg).results["points"]["center"]["consolidation"]
+        > res["points"]["center"]["consolidation"]
+    )
+
+
+def test_mv_secondary_compression_uses_calpha_eps():
+    cfg = _default_cfg()
+    clay = cfg["materials"][2]
+    base = _run(cfg).results["points"]["center"]["secondary"]
+    clay.update(
+        compression="mv",
+        mv=1.0,
+        mv_ur=clay["Cr"] / clay["Cc"],
+        Calpha_eps=clay["Calpha"] / (1.0 + clay["e0"]),
+    )
+    assert _run(cfg).results["points"]["center"]["secondary"] == pytest.approx(base, rel=1e-9)
+
+
+def test_an_incompressible_layer_does_not_settle_but_carries_its_weight():
+    cfg = _default_cfg()
+    soil = _run(cfg).results
+    cfg["materials"][3].update(behaviour="incompressible", E=0.0)
+    rock = _run(cfg)
+    layer = [row for row in rock.results["layers"] if row["name"] == "Dense sand"][0]
+    assert layer["immediate"] == layer["consolidation"] == layer["secondary"] == 0.0
+    assert layer["method"] == "incompressible"
+    assert np.allclose(rock.results["sub"]["sigma_eff"], soil["sub"]["sigma_eff"])
+    sand = [row for row in soil["layers"] if row["name"] == "Dense sand"][0]
+    assert rock.results["total"] == pytest.approx(soil["total"] - sand["immediate"], rel=1e-9)
+
+
+def test_an_incompressible_layer_takes_no_schmertmann_settlement():
+    cfg = _default_cfg()
+    cfg["options"]["immediate_method"] = "schmertmann"
+    cfg["materials"][1]["behaviour"] = "incompressible"
+    res = _run(cfg).results
+    assert [row for row in res["layers"] if row["name"] == "Medium dense sand"][0][
+        "immediate"
+    ] == 0.0
+
+
+def test_a_clay_without_a_modulus_has_no_immediate_settlement():
+    cfg = _default_cfg()
+    cfg["materials"][2]["E"] = 0.0
+    a = _run(cfg)
+    clay = [row for row in a.results["layers"] if row["name"] == "Soft clay"][0]
+    assert clay["immediate"] == 0.0 and clay["consolidation"] > 0
+    assert ("warn_no_E", {"name": "Soft clay"}) in a.results["warnings"]
+
+
+def test_a_sand_without_a_modulus_is_refused():
+    cfg = _default_cfg()
+    cfg["materials"][1]["E"] = 0.0
+    with pytest.raises(SettleError):
+        SettlementAnalysis(cfg)
+
+
+def test_a_material_used_twice_gives_two_layers():
+    cfg = _default_cfg()
+    cfg["soil_profile"].insert(4, {"material": "Soft clay", "thickness": 2.0, "drainage": "single"})
+    a = _run(cfg)
+    clays = [layer for layer in a.profile.layers if layer["material"] == "Soft clay"]
+    assert len(clays) == 2 and clays[1]["drainage"] == "single"

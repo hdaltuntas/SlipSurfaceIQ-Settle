@@ -1,8 +1,8 @@
 {
   "format": "slipsurface-settle",
-  "version": "0.1",
+  "version": "0.2",
   "project_info": {
-    "title": "Circular tank on layered clay",
+    "title": "Circular tank on layered clay over limestone",
     "analyst": ""
   },
   "foundation": {
@@ -24,12 +24,12 @@
     "depth": 1.5,
     "gamma_water": 9.81
   },
-  "soil_profile": [
+  "materials": [
     {
       "name": "Sandy fill",
+      "color": "#E3C98F",
       "behaviour": "granular",
-      "drainage": "double",
-      "thickness": 2.0,
+      "compression": "index",
       "gamma": 18.0,
       "gamma_sat": 19.5,
       "E": 15.0,
@@ -37,15 +37,18 @@
       "Cc": 0.0,
       "Cr": 0.0,
       "e0": 0.6,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.0,
       "cv": 0.0,
-      "Calpha": 0.0
+      "Calpha": 0.0,
+      "Calpha_eps": 0.0
     },
     {
       "name": "Soft silty clay",
+      "color": "#A7B8A0",
       "behaviour": "cohesive",
-      "drainage": "double",
-      "thickness": 5.0,
+      "compression": "index",
       "gamma": 17.0,
       "gamma_sat": 17.8,
       "E": 5.0,
@@ -53,15 +56,18 @@
       "Cc": 0.3,
       "Cr": 0.05,
       "e0": 1.0,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.5,
       "cv": 2.0,
-      "Calpha": 0.008
+      "Calpha": 0.008,
+      "Calpha_eps": 0.0
     },
     {
       "name": "Firm clay",
+      "color": "#8FA88A",
       "behaviour": "cohesive",
-      "drainage": "double",
-      "thickness": 7.0,
+      "compression": "mv",
       "gamma": 18.5,
       "gamma_sat": 19.0,
       "E": 12.0,
@@ -69,15 +75,18 @@
       "Cc": 0.18,
       "Cr": 0.03,
       "e0": 0.75,
+      "mv": 0.12,
+      "mv_ur": 0.03,
       "OCR": 2.5,
       "cv": 3.5,
-      "Calpha": 0.004
+      "Calpha": 0.004,
+      "Calpha_eps": 0.0023
     },
     {
       "name": "Dense gravel",
+      "color": "#D9B36C",
       "behaviour": "granular",
-      "drainage": "double",
-      "thickness": 10.0,
+      "compression": "index",
       "gamma": 20.0,
       "gamma_sat": 21.5,
       "E": 80.0,
@@ -85,9 +94,58 @@
       "Cc": 0.0,
       "Cr": 0.0,
       "e0": 0.6,
+      "mv": 0.0,
+      "mv_ur": 0.0,
       "OCR": 1.0,
       "cv": 0.0,
-      "Calpha": 0.0
+      "Calpha": 0.0,
+      "Calpha_eps": 0.0
+    },
+    {
+      "name": "Limestone",
+      "color": "#B9B4AE",
+      "behaviour": "incompressible",
+      "compression": "index",
+      "gamma": 24.0,
+      "gamma_sat": 25.0,
+      "E": 10.0,
+      "nu": 0.3,
+      "Cc": 0.0,
+      "Cr": 0.0,
+      "e0": 0.6,
+      "mv": 0.0,
+      "mv_ur": 0.0,
+      "OCR": 1.0,
+      "cv": 0.0,
+      "Calpha": 0.0,
+      "Calpha_eps": 0.0
+    }
+  ],
+  "soil_profile": [
+    {
+      "material": "Sandy fill",
+      "thickness": 2.0,
+      "drainage": "double"
+    },
+    {
+      "material": "Soft silty clay",
+      "thickness": 5.0,
+      "drainage": "double"
+    },
+    {
+      "material": "Firm clay",
+      "thickness": 7.0,
+      "drainage": "double"
+    },
+    {
+      "material": "Dense gravel",
+      "thickness": 4.0,
+      "drainage": "double"
+    },
+    {
+      "material": "Limestone",
+      "thickness": 10.0,
+      "drainage": "double"
     }
   ],
   "options": {
