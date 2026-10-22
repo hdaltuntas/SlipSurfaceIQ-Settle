@@ -34,7 +34,7 @@ def test_the_installer_build_reads_the_same_version():
     build = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(build)
     assert build.version() == slipsurface.settle.__version__
-    assert build.msi_version("2026.0.1") == "26.0.1"
+    assert build.msi_version("2026.1.0") == "26.1.0"
 
 
 def test_the_release_notes_name_the_version():

@@ -1,4 +1,4 @@
-# SlipSurfaceIQ Settle 2026.0.1
+# SlipSurfaceIQ Settle 2026.1.0
 
 - **Materials** are defined once, in their own dialog (**Properties › Define Materials…**,
   Ctrl+M), laid out as in SlipSurfaceIQ LE: the materials on the left, the properties
