@@ -71,7 +71,7 @@ TEXTS = {
         "clay_params": "Consolidation parameters of the cohesive layers",
         "mv_params": "Consolidation parameters of the cohesive layers described by mv",
         "note_mv": "Primary consolidation from the coefficients of volume compressibility: "
-        "ε = mv,ur·Δσ' up to σ'p and mv·Δσ' beyond it, s = Σ ε·Δz (mv in m²/MN); secondary "
+        "ε = mv,ur·Δσ' up to σ'p and mv·Δσ' beyond it, s = Σ ε·Δz (mv in m²/kN); secondary "
         "compression s = Cαε·H·log10(t/t_p) with Cαε = Cα/(1 + e0), reduced by mv,ur/mv "
         "where the final stress stays below σ'p.",
         "note_rock": "Incompressible layers (rock and the like) do not settle; their weight "
@@ -224,7 +224,7 @@ TEXTS = {
         "clay_params": "Kohezyonlu tabakaların konsolidasyon parametreleri",
         "mv_params": "mv ile tanımlanan kohezyonlu tabakaların konsolidasyon parametreleri",
         "note_mv": "Hacimsel sıkışma katsayılarıyla birincil konsolidasyon: σ'p'ye kadar "
-        "ε = mv,ur·Δσ', ötesinde mv·Δσ', s = Σ ε·Δz (mv, m²/MN); ikincil sıkışma "
+        "ε = mv,ur·Δσ', ötesinde mv·Δσ', s = Σ ε·Δz (mv, m²/kN); ikincil sıkışma "
         "s = Cαε·H·log10(t/t_p), Cαε = Cα/(1 + e0); son gerilmenin σ'p'nin altında kaldığı "
         "yerde mv,ur/mv oranında azaltılır.",
         "note_rock": "Sıkışmaz tabakalar (kaya vb.) oturmaz; ağırlıkları yerinde gerilmelerde "
@@ -362,6 +362,14 @@ def _f(x, nd=2) -> str:
     if x is None or (isinstance(x, float) and not math.isfinite(x)):
         return "—"
     return f"{x:,.{nd}f}"
+
+
+def _g(x) -> str:
+    """A small coefficient (cv in cm²/s, mv in m²/kN) to three significant figures."""
+    try:
+        return f"{float(x):.3g}"
+    except (TypeError, ValueError):
+        return "—"
 
 
 def _status(T, s: str) -> str:
@@ -638,7 +646,7 @@ def build_html(analysis, lang: str, figures: dict[str, bytes], img_src=None, stu
                 _f(lay["Cr"], 3),
                 _f(lay["e0"]),
                 _f(lay["OCR"]),
-                _f(lay["cv"]),
+                _g(lay["cv"]),
                 _f(lay["Calpha"], 4),
                 L["drainage_" + lay["drainage"]],
             ]
@@ -657,10 +665,10 @@ def build_html(analysis, lang: str, figures: dict[str, bytes], img_src=None, stu
             [
                 i,
                 _esc(lay["name"]),
-                _f(lay["mv"], 4),
-                _f(lay["mv_ur"], 4),
+                _g(lay["mv"]),
+                _g(lay["mv_ur"]),
                 _f(lay["OCR"]),
-                _f(lay["cv"]),
+                _g(lay["cv"]),
                 _f(lay["Calpha_eps"], 5),
                 L["drainage_" + lay["drainage"]],
             ]
@@ -671,8 +679,8 @@ def build_html(analysis, lang: str, figures: dict[str, bytes], img_src=None, stu
                 [
                     "#",
                     T["layer"],
-                    "mv (m²/MN)",
-                    "mv,ur (m²/MN)",
+                    "mv (m²/kN)",
+                    "mv,ur (m²/kN)",
                     "OCR",
                     L["col_cv"],
                     "Cαε",
@@ -824,7 +832,7 @@ def build_html(analysis, lang: str, figures: dict[str, bytes], img_src=None, stu
             [
                 _esc(row["name"]),
                 _f(row["h_dr"]),
-                _f(row["cv"]),
+                _g(row["cv"]),
                 duration(L, row["t50"]),
                 duration(L, row["t90"]),
             ]

@@ -19,7 +19,7 @@ from slipsurface.settle.study import (
     to_xlsx,
 )
 
-BASE = forms.to_config(forms.defaults())
+BASE = forms.to_config(forms.sample())
 
 
 def test_latin_hypercube_puts_one_sample_in_each_stratum():

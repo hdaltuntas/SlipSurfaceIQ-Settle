@@ -93,8 +93,9 @@ dock and the most useful view in the middle.
    thickness and, for a clay, the drainage. The materials themselves are defined in
    **Properties › Define Materials…** (Ctrl+M): granular, cohesive or incompressible
    (rock and the like). A cohesive material is described either by its compression
-   indices (Cc, Cr, e0) or by its coefficients of volume compressibility (mv, mv,ur),
-   with OCR, cv and the secondary compression rate.
+   indices (Cc, Cr, e0) or by its coefficients of volume compressibility (mv, mv,ur
+   in m²/kN), with OCR, cv (cm²/s) and the secondary compression rate. A new project
+   has no materials; the examples under **File › Examples** have.
 4. **Options** — stress distribution, immediate-settlement method, flexible or rigid,
    sublayer thickness, influence depth, design life, creep; allowable settlement and
    distortion.

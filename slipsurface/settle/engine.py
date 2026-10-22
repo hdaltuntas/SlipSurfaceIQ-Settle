@@ -45,6 +45,7 @@ from .config import (
     BEHAVIOURS,
     COMPRESSION,
     DEFAULT_CONFIG,
+    CV_TO_M2_PER_YEAR,
     DRAINAGE,
     MATERIAL_DEFAULT,
     IMMEDIATE_METHODS,
@@ -321,7 +322,8 @@ class SettlementAnalysis:
             "OCR": _num(row, "OCR", 1.0),
             "mv": max(0.0, _num(row, "mv", 0.0)),
             "mv_ur": max(0.0, _num(row, "mv_ur", 0.0)),
-            "cv": max(0.0, _num(row, "cv", 0.0)),
+            "cv": max(0.0, _num(row, "cv", 0.0)),  # cm²/s, as entered
+            "cv_yr": max(0.0, _num(row, "cv", 0.0)) * CV_TO_M2_PER_YEAR,  # m²/year
             "Calpha": max(0.0, _num(row, "Calpha", 0.0)),
             "Calpha_eps": max(0.0, _num(row, "Calpha_eps", 0.0)),
             "drainage": row.get("drainage") if row.get("drainage") in DRAINAGE else "double",
@@ -526,10 +528,10 @@ class SettlementAnalysis:
                     self.warnings.append(_message("warn_no_cc", name=layer["name"]))
                 h_dr = cons.drainage_path(loaded, layer["drainage"])
                 info["h_dr"] = h_dr
-                if layer["cv"] > 0:
-                    info["t50"] = cons.time_for(0.5, layer["cv"], h_dr)
-                    info["t90"] = cons.time_for(0.9, layer["cv"], h_dr)
-                    info["t_p"] = cons.time_for(cons.U_END_OF_PRIMARY, layer["cv"], h_dr)
+                if layer["cv_yr"] > 0:
+                    info["t50"] = cons.time_for(0.5, layer["cv_yr"], h_dr)
+                    info["t90"] = cons.time_for(0.9, layer["cv_yr"], h_dr)
+                    info["t_p"] = cons.time_for(cons.U_END_OF_PRIMARY, layer["cv_yr"], h_dr)
                 elif has_c:
                     self.warnings.append(_message("warn_no_cv", name=layer["name"]))
                 if layer["c_sec"] > 0 and not compensated:
@@ -796,7 +798,7 @@ class SettlementAnalysis:
             layer = self.profile.layers[info["index"]]
             s_c = float(np.sum(consolidation[rows]))
             if s_c > 0:
-                primary += cons.degree_at(t, layer["cv"], info["h_dr"]) * s_c
+                primary += cons.degree_at(t, layer["cv_yr"], info["h_dr"]) * s_c
             s_s_life = float(np.sum(secondary[rows]))
             if s_s_life > 0:
                 life = cons.secondary_strain(self.design_life, info["t_p"], layer["c_sec"], 0.0)[0]

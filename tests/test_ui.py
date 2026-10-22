@@ -38,7 +38,7 @@ def window(app, tmp_path, monkeypatch):
     monkeypatch.setattr(mw, "settings", lambda: store)
     texts.set_language("tr")
     preferences.apply_theme(False)
-    win = mw.SettleWindow()
+    win = mw.SettleWindow(forms.sample("tr"))
     win.show()
     app.processEvents()
     yield win
@@ -57,12 +57,32 @@ def _wait_study(app, win, limit=60.0):
     win._poll_study()
 
 
-def test_the_window_opens_on_the_default_project_and_computes(window):
+def test_the_window_computes_the_sample_project(window):
     assert window.result is not None
     assert window.result["total"] == pytest.approx(141.7, abs=0.2)
     assert "Toplam oturma" in window.summary.toPlainText()
     assert window.tree.topLevelItemCount() == 3
     assert window.windowTitle().startswith("Adsız")
+
+
+def test_a_new_project_starts_without_materials(app):
+    import slipsurface.settle.ui.mainwindow as mw
+    from slipsurface.settle.ui.dialogs import MaterialsDialog
+
+    win = mw.SettleWindow()
+    try:
+        assert win.values["materials"] == [] and win.values["soil_profile"] == []
+        assert win.result is None
+        assert not win.layer_table.buttons["add"].isEnabled()
+        dlg = MaterialsDialog([], {}, win)
+        assert dlg.list.count() == 0 and not dlg.empty.isHidden()
+        dlg._add()
+        assert dlg.list.count() == 1 and dlg.empty.isHidden()
+        dlg._delete()
+        assert dlg.list.count() == 0 and not dlg.empty.isHidden()
+    finally:
+        win.dirty = False
+        win.close()
 
 
 def test_a_committed_input_recomputes(window):
@@ -171,12 +191,12 @@ def test_a_clay_defined_by_mv_changes_the_settlement(window, monkeypatch):
         assert dlg.spins["Cc"].isVisibleTo(dlg) and not dlg.spins["mv"].isVisibleTo(dlg)
         dlg.compression.setCurrentIndex(dlg.compression.findData("mv"))
         assert dlg.spins["mv"].isVisibleTo(dlg) and not dlg.spins["Cc"].isVisibleTo(dlg)
-        dlg.spins["mv"].setValue(2.0)
+        dlg.spins["mv"].setValue(0.002)
 
     _materials_dialog(window, monkeypatch, edit)
     window.compute()
     clay = window.values["materials"][2]
-    assert clay["compression"] == "mv" and clay["mv"] == 2.0
+    assert clay["compression"] == "mv" and clay["mv"] == pytest.approx(0.002)
     assert window.result["total"] > before
     assert window.dirty and window.a_undo.isEnabled()
 

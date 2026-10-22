@@ -64,6 +64,14 @@ UI = {
     "btn_cancel": ("Cancel", "İptal"),
     "btn_save": ("Save", "Kaydet"),
     "btn_discard": ("Don't save", "Kaydetme"),
+    "mat_empty": (
+        "No materials yet. Add one with + below the list.",
+        "Henüz malzeme yok. Listenin altındaki + ile ekleyin.",
+    ),
+    "need_materials": (
+        "Define a material first (Properties › Define Materials…).",
+        "Önce bir malzeme tanımlayın (Özellikler › Malzemeleri Tanımla…).",
+    ),
     "tr_materials": ("Materials", "Malzemeler"),
     "tr_edit_hint": ("Double-click to edit", "Düzenlemek için çift tıklayın"),
     "a_add_row": ("Add layer", "Tabaka ekle"),

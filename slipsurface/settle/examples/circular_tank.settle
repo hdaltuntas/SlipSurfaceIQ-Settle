@@ -1,6 +1,6 @@
 {
   "format": "slipsurface-settle",
-  "version": "0.2",
+  "version": "0.3",
   "project_info": {
     "title": "Circular tank on layered clay over limestone",
     "analyst": ""
@@ -59,7 +59,7 @@
       "mv": 0.0,
       "mv_ur": 0.0,
       "OCR": 1.5,
-      "cv": 2.0,
+      "cv": 0.000633761756280579,
       "Calpha": 0.008,
       "Calpha_eps": 0.0
     },
@@ -75,10 +75,10 @@
       "Cc": 0.18,
       "Cr": 0.03,
       "e0": 0.75,
-      "mv": 0.12,
-      "mv_ur": 0.03,
+      "mv": 0.00012,
+      "mv_ur": 3e-05,
       "OCR": 2.5,
-      "cv": 3.5,
+      "cv": 0.0011090830734910133,
       "Calpha": 0.004,
       "Calpha_eps": 0.0023
     },

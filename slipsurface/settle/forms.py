@@ -26,11 +26,15 @@ from .config import (
     BEHAVIOURS,
     COMPRESSION,
     DEFAULT_CONFIG,
+    CV_TO_M2_PER_YEAR,
+    CV_UNIT,
     DRAINAGE,
     IMMEDIATE_METHODS,
     MATERIAL_COLORS,
     MATERIAL_DEFAULT,
+    MV_UNIT,
     RIGIDITY,
+    SAMPLE_CONFIG,
     SHAPES,
     STRESS_METHODS,
 )
@@ -41,7 +45,10 @@ FILE_FORMAT = "slipsurface-settle"
 # Project files saved before the product was renamed still open.
 READ_FORMATS = (FILE_FORMAT, "slipsurface-settle")
 # 0.2: materials, and layers that name one (0.1 carried the properties per layer)
-FILE_VERSION = "0.2"
+# 0.3: cv in cm²/s and mv in m²/kN (before: m²/year and m²/MN)
+FILE_VERSION = "0.3"
+#: Factors that bring a pre-0.3 value to the present units
+OLD_UNITS = {"cv": 1.0 / CV_TO_M2_PER_YEAR, "mv": 1e-3, "mv_ur": 1e-3}
 
 
 def _t(lang: str, key: str) -> str:
@@ -336,10 +343,10 @@ MATERIAL_NUMBERS = [
     ("Cc", "grp_mat_cons", "", 4, 0, 10, 0.01, (INDEX,)),
     ("Cr", "grp_mat_cons", "", 4, 0, 10, 0.01, (INDEX,)),
     ("e0", "grp_mat_cons", "", 3, 0.01, 20, 0.05, (INDEX,)),
-    ("mv", "grp_mat_cons", "m²/MN", 4, 0, 100, 0.05, (MV,)),
-    ("mv_ur", "grp_mat_cons", "m²/MN", 4, 0, 100, 0.01, (MV,)),
+    ("mv", "grp_mat_cons", MV_UNIT, 7, 0, 1, 0.0001, (MV,)),
+    ("mv_ur", "grp_mat_cons", MV_UNIT, 7, 0, 1, 0.00001, (MV,)),
     ("OCR", "grp_mat_cons", "", 2, 1, 50, 0.1, CLAYS),
-    ("cv", "grp_mat_time", "m²/yr", 3, 0, 1e4, 0.1, CLAYS),
+    ("cv", "grp_mat_time", CV_UNIT, 7, 0, 10, 0.0001, CLAYS),
     ("Calpha", "grp_mat_time", "", 4, 0, 1, 0.001, (INDEX,)),
     ("Calpha_eps", "grp_mat_time", "", 5, 0, 1, 0.001, (MV,)),
 ]
@@ -358,8 +365,6 @@ def material_fields(lang: str = "en") -> list[dict]:
     """The numeric properties of a material, labelled, with where they apply."""
     out = []
     for key, group, unit, dec, lo, hi, step, applies in MATERIAL_NUMBERS:
-        if unit == "m²/yr" and lang == "tr":
-            unit = "m²/yıl"
         out.append(
             {
                 "key": key,
@@ -489,6 +494,19 @@ def defaults(lang: str = "en") -> dict[str, Any]:
     values["materials"] = default_materials()
     values["soil_profile"] = default_soil_rows()
     values["study_variables"] = []
+    return values
+
+
+def sample(lang: str = "en") -> dict[str, Any]:
+    """The sample project (a raft on soft clay between sands) as flat values.
+
+    A new project has no materials; this is what `example` writes and what
+    the tests analyse.
+    """
+    values = defaults(lang)
+    values["title"] = SAMPLE_CONFIG["project_info"]["title"]
+    values["materials"] = [dict(m) for m in SAMPLE_CONFIG["materials"]]
+    values["soil_profile"] = [dict(row) for row in SAMPLE_CONFIG["soil_profile"]]
     return values
 
 
@@ -707,6 +725,12 @@ def from_config(cfg: dict, base: dict | None = None) -> dict[str, Any]:
         ]
     elif layers:
         values["materials"], values["soil_profile"], index_of = migrate_layers(cfg)
+    old_units = str(cfg.get("version", "")) in ("0.1", "0.2")
+    if old_units:
+        for material in values.get("materials") or []:
+            for key, factor in OLD_UNITS.items():
+                if key in material:
+                    material[key] = _f(material, key, 0.0) * factor
     study = cfg.get("study") or {}
     for src, dst in (("method", "study_method"), ("n", "study_n"), ("seed", "study_seed")):
         if src in study:
@@ -726,6 +750,11 @@ def from_config(cfg: dict, base: dict | None = None) -> dict[str, Any]:
                 and int(parts[1]) in index_of
             ):
                 spec["path"] = f"materials.{index_of[int(parts[1])]}.{parts[2]}"
+            factor = OLD_UNITS.get(parts[-1]) if old_units else None
+            if factor:
+                for key in ("min", "max", "mean"):
+                    if spec.get(key) not in (None, ""):
+                        spec[key] = float(spec[key]) * factor
             variables.append(spec)
         values["study_variables"] = variables
     return values

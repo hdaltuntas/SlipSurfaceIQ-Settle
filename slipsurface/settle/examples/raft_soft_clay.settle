@@ -1,6 +1,6 @@
 {
   "format": "slipsurface-settle",
-  "version": "0.2",
+  "version": "0.3",
   "project_info": {
     "title": "Project: Raft on soft clay",
     "analyst": ""
@@ -78,7 +78,7 @@
       "mv": 0.0,
       "mv_ur": 0.0,
       "OCR": 1.3,
-      "cv": 1.5,
+      "cv": 0.00047532131721043426,
       "Calpha": 0.01,
       "Calpha_eps": 0.0
     },

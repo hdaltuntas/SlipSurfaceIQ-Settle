@@ -9,7 +9,7 @@ import math
 import numpy as np
 import pytest
 
-from slipsurface.settle.config import DEFAULT_CONFIG
+from slipsurface.settle.config import SAMPLE_CONFIG as DEFAULT_CONFIG
 from slipsurface.settle.engine import SettleError, SettlementAnalysis
 
 
@@ -298,7 +298,7 @@ def test_a_shallow_profile_is_warned_about():
 def _default_cfg():
     from slipsurface.settle import forms
 
-    return forms.to_config(forms.defaults())
+    return forms.to_config(forms.sample())
 
 
 def _run(cfg):
@@ -309,23 +309,23 @@ def _run(cfg):
 
 def test_mv_consolidation_is_mv_times_the_stress_increase():
     cfg = _default_cfg()
-    cfg["materials"][2].update(compression="mv", mv=0.8, mv_ur=0.1, OCR=1.0)
+    cfg["materials"][2].update(compression="mv", mv=0.0008, mv_ur=0.0001, OCR=1.0)
     res = _run(cfg).results
     sub = res["sub"]
     rows = (sub["layer"] == 2) & sub["active"]
-    hand = np.sum(0.8 * sub["dsigma"]["center"][rows] / 1000.0 * sub["dz"][rows]) * 1000.0
+    hand = np.sum(0.0008 * sub["dsigma"]["center"][rows] * sub["dz"][rows]) * 1000.0
     assert res["points"]["center"]["consolidation"] == pytest.approx(hand, rel=1e-12)
 
 
 def test_mv_ur_applies_below_the_preconsolidation_stress():
     cfg = _default_cfg()
-    cfg["materials"][2].update(compression="mv", mv=0.8, mv_ur=0.1, OCR=1.3)
+    cfg["materials"][2].update(compression="mv", mv=0.0008, mv_ur=0.0001, OCR=1.3)
     res = _run(cfg).results
     sub = res["sub"]
     rows = (sub["layer"] == 2) & sub["active"]
     s0, ds = sub["sigma_eff"][rows], sub["dsigma"]["center"][rows]
     sp = 1.3 * s0
-    eps = np.where(s0 + ds <= sp, 0.1 * ds, 0.1 * (sp - s0) + 0.8 * (s0 + ds - sp)) / 1000.0
+    eps = np.where(s0 + ds <= sp, 0.0001 * ds, 0.0001 * (sp - s0) + 0.0008 * (s0 + ds - sp))
     assert res["points"]["center"]["consolidation"] == pytest.approx(
         np.sum(eps * sub["dz"][rows]) * 1000.0, rel=1e-12
     )

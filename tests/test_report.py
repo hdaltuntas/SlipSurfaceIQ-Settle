@@ -9,7 +9,7 @@ from slipsurface.settle.study import Study, StudyVariable
 
 @pytest.fixture(scope="module")
 def analysis():
-    a = SettlementAnalysis(forms.to_config(forms.defaults()))
+    a = SettlementAnalysis(forms.to_config(forms.sample()))
     a.run()
     return a
 

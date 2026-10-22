@@ -35,7 +35,18 @@ from ..config import MATERIAL_DEFAULT
 from .icons import color_icon, icon
 from .preferences import colours, fit_to_screen
 from .texts import language, t
-from .widgets import QuietCombo, QuietSpin, StudyTable, header, material_colour, note_label
+from .widgets import (
+    QuietCombo,
+    QuietSpin,
+    SciSpin,
+    StudyTable,
+    header,
+    material_colour,
+    note_label,
+)
+
+#: Properties entered as small coefficients, in scientific notation
+SCIENTIFIC = {"cv", "mv", "mv_ur", "Calpha_eps"}
 
 TITLE_CSS = "color:#2a7ad0;font-size:16px;font-weight:600;"
 
@@ -69,8 +80,6 @@ class MaterialsDialog(QDialog):
         self.used = dict(used or {})
         lang = language()
         self.mats = [{**MATERIAL_DEFAULT, **m} for m in materials]
-        if not self.mats:
-            self.mats = [forms.new_material([], lang)]
         self._orig = [str(m["name"]) for m in self.mats]
         self._loading = False
         self.cur = -1
@@ -152,8 +161,9 @@ class MaterialsDialog(QDialog):
                 props.addWidget(box)
                 forms_by_group[f["group"]] = fl
                 self.groups[f["group"]] = (head, box)
-            spin = QuietSpin()
-            spin.setDecimals(f["decimals"])
+            spin = SciSpin() if f["key"] in SCIENTIFIC else QuietSpin()
+            if f["key"] not in SCIENTIFIC:
+                spin.setDecimals(f["decimals"])
             spin.setRange(f["min"], f["max"])
             spin.setSingleStep(f["step"])
             if f["unit"]:
@@ -175,7 +185,10 @@ class MaterialsDialog(QDialog):
         scroll.setFrameShape(QScrollArea.NoFrame)
         scroll.setWidget(body)
 
+        self.empty = note_label(t("mat_empty"))
+        self.empty.setAlignment(Qt.AlignCenter)
         right = QVBoxLayout()
+        right.addWidget(self.empty)
         right.addWidget(self.title)
         right.addLayout(grid)
         right.addSpacing(4)
@@ -186,7 +199,9 @@ class MaterialsDialog(QDialog):
         left_box.setLayout(left)
         left_box.setFixedWidth(250)
         columns.addWidget(left_box)
-        columns.addLayout(right, 1)
+        self.editor = QWidget()
+        self.editor.setLayout(right)
+        columns.addWidget(self.editor, 1)
 
         buttons = ok_cancel()
         buttons.accepted.connect(self._accept)
@@ -199,7 +214,9 @@ class MaterialsDialog(QDialog):
         start = 0
         if select is not None:
             start = next((i for i, m in enumerate(self.mats) if m["name"] == select), 0)
-        self.list.setCurrentRow(start)
+        self._set_empty(not self.mats)
+        if self.mats:
+            self.list.setCurrentRow(start)
 
     # ---------------------------------------------------------------- list
     def _fill_list(self) -> None:
@@ -217,9 +234,18 @@ class MaterialsDialog(QDialog):
             item.setText(m["name"])
             item.setIcon(color_icon(material_colour(m), 16))
 
+    def _set_empty(self, empty: bool) -> None:
+        """No material yet: only the hint and the Add button."""
+        self.empty.setVisible(empty)
+        for w in self.editor.findChildren(QWidget):
+            if w is not self.empty and w.parent() is self.editor:
+                w.setVisible(not empty)
+        self.title.setVisible(not empty)
+
     def _select(self, i: int) -> None:
         if not 0 <= i < len(self.mats):
             return
+        self._set_empty(False)
         self.cur = i
         m = self.mats[i]
         self._loading = True
@@ -331,14 +357,15 @@ class MaterialsDialog(QDialog):
                 self, t("a_del_mat"), t("mat_in_use", name=self.mats[self.cur]["name"], n=in_use)
             )
             return
-        if len(self.mats) == 1:
-            return
         del self.mats[self.cur]
         del self._orig[self.cur]
         row = min(self.cur, len(self.mats) - 1)
         self._fill_list()
         self.cur = -1
-        self.list.setCurrentRow(row)
+        if self.mats:
+            self.list.setCurrentRow(row)
+        else:
+            self._set_empty(True)
 
     def _move(self, step: int) -> None:
         i, j = self.cur, self.cur + step

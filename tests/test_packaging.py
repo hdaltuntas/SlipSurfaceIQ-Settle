@@ -121,7 +121,7 @@ def test_the_bare_command_opens_the_interface(monkeypatch):
 
 
 def test_a_refused_analysis_prints_a_message_not_a_traceback(tmp_path, capsys):
-    values = forms.defaults()
+    values = forms.sample()
     values["Df"] = 50.0  # below the soil profile
     path = tmp_path / "impossible.settle"
     path.write_text(json.dumps(forms.project_file(values)), encoding="utf-8")

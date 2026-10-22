@@ -97,6 +97,51 @@ class QuietSpin(QDoubleSpinBox):
             ev.ignore()
 
 
+class SciSpin(QuietSpin):
+    """A spin box for small coefficients (cv in cm²/s, mv in m²/kN): shows four
+    significant figures, as 4.75e-04 when small, and takes 4.75e-4, 0,000475
+    or 0.000475 alike."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setDecimals(12)
+
+    def textFromValue(self, value: float) -> str:  # noqa: N802 (Qt API)
+        if value == 0:
+            return "0"
+        if abs(value) >= 0.01:
+            return f"{value:.4g}"
+        mantissa, exponent = f"{value:.3e}".split("e")
+        mantissa = mantissa.rstrip("0").rstrip(".")
+        return f"{mantissa}e{int(exponent)}"
+
+    def valueFromText(self, text: str) -> float:  # noqa: N802 (Qt API)
+        try:
+            return float(self._plain(text))
+        except ValueError:
+            return self.value()
+
+    def validate(self, text: str, pos: int):  # noqa: N802 (Qt API)
+        from PySide6.QtGui import QValidator
+
+        plain = self._plain(text)
+        if plain in ("", "-", ".", "e", "E") or plain.lower().endswith(("e", "e-", "e+")):
+            return QValidator.Intermediate, text, pos
+        try:
+            value = float(plain)
+        except ValueError:
+            return QValidator.Invalid, text, pos
+        ok = self.minimum() <= value <= self.maximum()
+        return (QValidator.Acceptable if ok else QValidator.Intermediate), text, pos
+
+    def _plain(self, text: str) -> str:
+        text = text.strip()
+        suffix = self.suffix().strip()
+        if suffix and text.endswith(suffix):
+            text = text[: -len(suffix)].strip()
+        return text.replace(",", ".")
+
+
 class QuietCombo(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -472,6 +517,8 @@ class LayerTable(_EditableTable):
     def set_materials(self, materials: list[dict]) -> None:
         """The materials a layer may name; the layers keep the one they had."""
         self.materials = [dict(m) for m in materials]
+        self.buttons["add"].setEnabled(bool(materials))
+        self.buttons["add"].setToolTip(t("a_add_row") if materials else t("need_materials"))
         col = self.keys.index("material")
         self.columns[col]["options"] = [{"value": m["name"], "label": m["name"]} for m in materials]
         self._quiet = True

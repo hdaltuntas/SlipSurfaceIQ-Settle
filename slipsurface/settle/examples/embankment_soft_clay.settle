@@ -1,6 +1,6 @@
 {
   "format": "slipsurface-settle",
-  "version": "0.2",
+  "version": "0.3",
   "project_info": {
     "title": "Embankment on soft clay",
     "analyst": ""
@@ -40,7 +40,7 @@
       "mv": 0.0,
       "mv_ur": 0.0,
       "OCR": 3.0,
-      "cv": 3.0,
+      "cv": 0.0009506426344208685,
       "Calpha": 0.005,
       "Calpha_eps": 0.0
     },
@@ -59,7 +59,7 @@
       "mv": 0.0,
       "mv_ur": 0.0,
       "OCR": 1.2,
-      "cv": 1.2,
+      "cv": 0.0003802570537683474,
       "Calpha": 0.015,
       "Calpha_eps": 0.0
     },
@@ -123,10 +123,10 @@
         "label": "Soft clay · cv",
         "mode": "range",
         "dist": "normal",
-        "mean": 1.2,
+        "mean": 0.0003802570537683474,
         "cov": 0.1,
-        "min": 0.5,
-        "max": 3.0,
+        "min": 0.00015844043907014475,
+        "max": 0.0009506426344208685,
         "n_points": 7
       }
     ]

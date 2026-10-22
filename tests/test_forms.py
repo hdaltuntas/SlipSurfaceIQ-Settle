@@ -3,7 +3,7 @@
 import pytest
 
 from slipsurface.settle import forms
-from slipsurface.settle.config import DEFAULT_CONFIG
+from slipsurface.settle.config import DEFAULT_CONFIG, SAMPLE_CONFIG
 from slipsurface.settle.engine import SettlementAnalysis
 
 
@@ -36,7 +36,7 @@ def test_the_defaults_are_the_default_project():
 
 
 def test_a_project_file_round_trips():
-    values = forms.defaults()
+    values = forms.sample()
     values.update(B=6.5, water_depth=4.0, rigidity="rigid", s_allow=60.0, study_n=77)
     values["materials"][2]["Cc"] = 0.41
     values["materials"].append({"name": "Limestone", "behaviour": "incompressible"})
@@ -65,16 +65,16 @@ def test_a_partial_project_file_keeps_the_defaults():
 
 
 def test_empty_and_unusable_table_rows_are_dropped():
-    values = forms.defaults()
+    values = forms.sample()
     values["soil_profile"] = values["soil_profile"] + [
         {"material": "Fill", "thickness": None},
         {"material": "Fill", "thickness": 0},
     ]
-    assert len(forms.to_config(values)["soil_profile"]) == len(DEFAULT_CONFIG["soil_profile"])
+    assert len(forms.to_config(values)["soil_profile"]) == len(SAMPLE_CONFIG["soil_profile"])
 
 
 def test_empty_cells_fall_back_to_defaults_and_unknown_choices_are_ignored():
-    values = forms.defaults()
+    values = forms.sample()
     values.update(q="", shape="hexagon", stress_method=None)
     values["materials"][0]["E"] = None
     values["materials"][1]["behaviour"] = "jelly"
@@ -88,7 +88,7 @@ def test_empty_cells_fall_back_to_defaults_and_unknown_choices_are_ignored():
 
 
 def test_variable_choices_carry_label_and_project_value():
-    choices = forms.variable_choices(forms.defaults(), "en")
+    choices = forms.variable_choices(forms.sample(), "en")
     by_path = {c["value"]: c for c in choices}
     assert by_path["foundation.q"]["base"] == DEFAULT_CONFIG["foundation"]["q"]
     assert by_path["materials.2.Cc"]["label"] == "Soft clay · Cc"
@@ -98,7 +98,7 @@ def test_variable_choices_carry_label_and_project_value():
 
 
 def test_a_clay_described_by_mv_offers_mv_not_cc():
-    values = forms.defaults()
+    values = forms.sample()
     values["materials"][2]["compression"] = "mv"
     paths = {c["value"] for c in forms.variable_choices(values, "en")}
     assert {"materials.2.mv", "materials.2.mv_ur", "materials.2.Calpha_eps"} <= paths
@@ -140,7 +140,7 @@ def test_a_2026_0_0_project_with_properties_per_layer_is_converted():
     ]
     # the converted project gives the same answer as the old one read directly
     direct = SettlementAnalysis(
-        {**forms.to_config(forms.defaults()), "materials": [], "soil_profile": old["soil_profile"]}
+        {**forms.to_config(forms.sample()), "materials": [], "soil_profile": old["soil_profile"]}
     )
     direct.run()
     converted = SettlementAnalysis(forms.to_config(values))
@@ -151,8 +151,54 @@ def test_a_2026_0_0_project_with_properties_per_layer_is_converted():
 def test_a_layer_naming_an_unknown_material_is_refused():
     from slipsurface.settle.engine import SettleError
 
-    values = forms.defaults()
+    values = forms.sample()
     values["soil_profile"][1]["material"] = "Nothing"
     with pytest.raises(SettleError) as err:
         SettlementAnalysis(forms.to_config(values))
     assert err.value.key == "err_material"
+
+
+def test_a_new_project_has_no_materials_or_layers():
+    values = forms.defaults()
+    assert values["materials"] == [] and values["soil_profile"] == []
+    assert values["title"] == ""
+    from slipsurface.settle.engine import SettleError
+
+    with pytest.raises(SettleError) as err:
+        SettlementAnalysis(forms.to_config(values))
+    assert err.value.key == "err_no_layers"
+
+
+def test_old_units_are_converted_on_opening():
+    """Files before format 0.3 carried cv in m²/year and mv in m²/MN."""
+    from slipsurface.settle.config import CV_TO_M2_PER_YEAR
+
+    old = forms.project_file(forms.sample())
+    old["version"] = "0.2"
+    old["materials"][2].update(cv=1.5, mv=0.8, mv_ur=0.1)
+    old["study"]["variables"] = [
+        {"path": "materials.2.cv", "mode": "range", "min": 1.0, "max": 3.0, "mean": 2.0}
+    ]
+    values = forms.from_config(old)
+    clay = values["materials"][2]
+    assert clay["cv"] == pytest.approx(1.5 / CV_TO_M2_PER_YEAR)
+    assert clay["mv"] == pytest.approx(0.0008) and clay["mv_ur"] == pytest.approx(0.0001)
+    spec = values["study_variables"][0]
+    assert spec["min"] == pytest.approx(1.0 / CV_TO_M2_PER_YEAR)
+    assert spec["max"] == pytest.approx(3.0 / CV_TO_M2_PER_YEAR)
+    # a current file is read as it is
+    current = forms.project_file(forms.sample())
+    assert forms.from_config(current)["materials"][2]["cv"] == SAMPLE_CONFIG["materials"][2]["cv"]
+
+
+def test_cv_in_cm2_per_second_gives_terzaghi_times_in_years():
+    """t90 = Tv90·H_dr²/cv with cv converted from cm²/s to m²/year."""
+    from slipsurface.settle import consolidation as cons
+    from slipsurface.settle.config import CV_TO_M2_PER_YEAR
+
+    a = SettlementAnalysis(forms.to_config(forms.sample()))
+    a.run()
+    clay = [row for row in a.results["layers"] if row["name"] == "Soft clay"][0]
+    cv = SAMPLE_CONFIG["materials"][2]["cv"] * CV_TO_M2_PER_YEAR
+    assert clay["t90"] == pytest.approx(cons.time_factor(0.9) * clay["h_dr"] ** 2 / cv)
+    assert CV_TO_M2_PER_YEAR == pytest.approx(3155.76)

@@ -105,7 +105,7 @@ No Skempton–Bjerrum correction is applied; the one-dimensional value is conser
 over-consolidated clay under a narrow footing.
 
 **By the coefficients of volume compressibility.** A clay may instead be described by
-mv and mv,ur [m²/MN] — the slope of the virgin and of the unloading–reloading branch:
+mv and mv,ur [m²/kN] — the slope of the virgin and of the unloading–reloading branch:
 
     ε = mv,ur·(min(σ'f, σ'p) − σ'v0) + mv·max(σ'f − σ'p, 0)
     s = Σ ε · Δz
@@ -123,6 +123,7 @@ given no immediate settlement — consolidation only.
 ## 7. Time
 
 Terzaghi's average degree of consolidation for a uniform initial excess pore pressure,
+cv is entered in cm²/s and converted to m²/year (1 cm²/s = 3155.76 m²/year).
 U = 1 − Σ 2/M²·exp(−M²Tv), M = π(2m+1)/2, with √(4Tv/π) for Tv < 10⁻³; Tv = cv·t/H_dr²,
 H_dr = H/2 for double and H for single drainage, H the thickness of the layer below the
 base. Tv(U) is found by bisection, so U(Tv(U)) = U exactly. Each clay layer consolidates

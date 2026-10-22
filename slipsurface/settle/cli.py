@@ -98,7 +98,7 @@ def _dispatch(command: str, args) -> int:
     from . import forms
 
     if command == "example":
-        values = forms.defaults()
+        values = forms.sample()
         values["study_variables"] = _example_study(values)
         with open(args.out, "w", encoding="utf-8") as fh:
             json.dump(forms.project_file(values), fh, indent=2, ensure_ascii=False)

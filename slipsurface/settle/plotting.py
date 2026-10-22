@@ -117,7 +117,7 @@ class Plotter:
         if layer["behaviour"] == "incompressible":
             return ""
         if layer["behaviour"] == "cohesive" and layer["compression"] == "mv":
-            return f", mv = {layer['mv']:g} m²/MN"
+            return f", mv = {layer['mv']:.3g} m²/kN"
         if layer["E_MPa"] <= 0:
             return ""
         return f", E = {layer['E_MPa']:g} MPa"

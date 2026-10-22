@@ -18,7 +18,13 @@
   layers and clays without a modulus; the section figure fills each layer with its
   material's colour.
 - Projects saved by 2026.0.0 open unchanged: each distinct layer becomes a material and
-  study variables follow it. Files are now saved as format 0.2.
+  study variables follow it. Files are now saved as format 0.3.
+- **Units of the consolidation inputs:** cv in cm²/s and mv, mv,ur in m²/kN, as on the
+  oedometer sheet (the analysis converts them internally). Files saved before format
+  0.3 are converted on opening, study ranges included.
+- **No predefined materials:** a new project starts with an empty material list and soil
+  profile. The former default profile remains as the raft example and the command
+  line's `example`.
 - Dialog buttons and the unsaved-changes prompt follow the interface language.
 
 # SlipSurfaceIQ Settle 2026.0.0

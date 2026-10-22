@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from slipsurface.settle import forms, stress
-from slipsurface.settle.config import DEFAULT_CONFIG
+from slipsurface.settle.config import SAMPLE_CONFIG as DEFAULT_CONFIG
 from slipsurface.settle.engine import SettleError, SettlementAnalysis
 from slipsurface.settle.study import available_variables
 
@@ -222,7 +222,7 @@ def test_the_form_shows_the_fill_fields_only_for_a_fill():
 
 
 def test_the_fill_inputs_round_trip_through_a_project_file():
-    values = forms.defaults()
+    values = forms.sample()
     values.update(shape="embankment", emb_height=6.5, emb_slope_right=33.69)
     back = forms.from_config(forms.project_file(values))
     assert back["emb_height"] == 6.5 and back["emb_slope_right"] == 33.69

@@ -88,7 +88,8 @@ en kullanışlı görünümünü ortada açar.
    kil için drenaj. Malzemelerin kendisi **Özellikler › Malzemeleri Tanımla…** (Ctrl+M)
    penceresinde tanımlanır: granüler, kohezyonlu ya da sıkışmaz (kaya vb.). Kohezyonlu
    malzeme ya sıkışma indisleriyle (Cc, Cr, e0) ya da hacimsel sıkışma katsayılarıyla
-   (mv, mv,ur) tanımlanır; OCR, cv ve ikincil sıkışma ile birlikte.
+   (mv, mv,ur, m²/kN) tanımlanır; OCR, cv (cm²/s) ve ikincil sıkışma ile birlikte. Yeni
+   projede malzeme yoktur; **Dosya › Örnekler** altındaki projelerde vardır.
 4. **Seçenekler** — gerilme dağılımı, ani oturma yöntemi, esnek ya da rijit temel, alt
    tabaka kalınlığı, etki derinliği, tasarım ömrü, krip; izin verilen oturma ve
    distorsiyon.

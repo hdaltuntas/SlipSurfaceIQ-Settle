@@ -207,7 +207,7 @@ ENTRIES = {
     "col_Cr": ("Cr", "Cr"),
     "col_e0": ("e0", "e0"),
     "col_OCR": ("OCR", "OCR"),
-    "col_cv": ("cv (m²/yr)", "cv (m²/yıl)"),
+    "col_cv": ("cv (cm²/s)", "cv (cm²/s)"),
     "col_Calpha": ("Cα", "Cα"),
     "col_drainage": ("Drainage", "Drenaj"),
     "soil_note": (
@@ -327,8 +327,8 @@ ENTRIES = {
     ),
     "res_time_title": ("Consolidation time", "Konsolidasyon süresi"),
     "res_time_line": (
-        "{name}: H_dr = {h:.2f} m, cv = {cv:.2f} m²/yr, t50 = {t50}, t90 = {t90}",
-        "{name}: H_dr = {h:.2f} m, cv = {cv:.2f} m²/yıl, t50 = {t50}, t90 = {t90}",
+        "{name}: H_dr = {h:.2f} m, cv = {cv:.3g} cm²/s, t50 = {t50}, t90 = {t90}",
+        "{name}: H_dr = {h:.2f} m, cv = {cv:.3g} cm²/s, t50 = {t50}, t90 = {t90}",
     ),
     "res_at_life": (
         "Settlement after {life:g} years: {s:.1f} mm",

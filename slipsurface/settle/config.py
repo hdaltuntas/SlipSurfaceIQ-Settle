@@ -30,6 +30,13 @@ __all__ = [
 
 MM_PER_M = 1000.0
 
+#: Units of the consolidation inputs: cv in cm²/s and mv in m²/kN, as on the
+#: oedometer sheet. The analysis works in metres and years internally.
+CV_UNIT = "cm²/s"
+MV_UNIT = "m²/kN"
+#: cm²/s -> m²/year (Julian year)
+CV_TO_M2_PER_YEAR = 1e-4 * 365.25 * 86400.0
+
 # --- Choice lists (the first entry is the default where one is needed) -----
 SHAPES = ["rectangle", "strip", "circle", "embankment"]
 STRESS_METHODS = ["boussinesq", "two_to_one"]
@@ -125,7 +132,7 @@ MATERIAL_COLORS = [
 
 #: Every property a material may have, with its default. E [MPa] is the drained
 #: modulus of a granular material and the undrained modulus of a cohesive one
-#: (0: no immediate settlement); mv, mv_ur in m²/MN; cv in m²/year;
+#: (0: no immediate settlement); mv, mv_ur in m²/kN; cv in cm²/s;
 #: OCR = σ'p / σ'v0; Calpha_eps = Cα / (1 + e0), for the mv description.
 MATERIAL_DEFAULT = {
     "name": "Material",
@@ -150,7 +157,7 @@ SOIL_FILL["paper"] = SOIL_FILL["light"]
 
 DEFAULT_CONFIG = {
     "project_info": {
-        "title": "Project: Raft on soft clay",
+        "title": "",
         "analyst": "",
     },
     "foundation": {
@@ -174,60 +181,9 @@ DEFAULT_CONFIG = {
         "depth": 2.0,  # below ground surface [m]
         "gamma_water": 9.81,  # [kN/m³]
     },
-    # The materials, and the layers that use them from the ground surface down.
-    # Drainage belongs to the layer, since it depends on what lies around it.
-    "materials": [
-        {
-            **MATERIAL_DEFAULT,
-            "name": "Fill",
-            "color": "#D9B36C",
-            "gamma": 18.0,
-            "gamma_sat": 19.0,
-            "E": 10.0,
-        },
-        {
-            **MATERIAL_DEFAULT,
-            "name": "Medium dense sand",
-            "color": "#E3C98F",
-            "gamma": 18.5,
-            "gamma_sat": 20.0,
-            "E": 25.0,
-        },
-        {
-            **MATERIAL_DEFAULT,
-            "name": "Soft clay",
-            "color": "#A7B8A0",
-            "behaviour": "cohesive",
-            "gamma": 17.0,
-            "gamma_sat": 17.5,
-            "E": 6.0,
-            "nu": 0.50,
-            "Cc": 0.32,
-            "Cr": 0.05,
-            "e0": 1.05,
-            "OCR": 1.3,
-            "mv": 1.0,
-            "mv_ur": 0.15,
-            "cv": 1.5,
-            "Calpha": 0.010,
-            "Calpha_eps": 0.005,
-        },
-        {
-            **MATERIAL_DEFAULT,
-            "name": "Dense sand",
-            "color": "#C7B39A",
-            "gamma": 19.5,
-            "gamma_sat": 21.0,
-            "E": 60.0,
-            "e0": 0.5,
-        },
-    ],
-    "soil_profile": [
-        {"material": "Fill", "thickness": 1.5, "drainage": "double"},
-        {"material": "Medium dense sand", "thickness": 3.5, "drainage": "double"},
-        {"material": "Soft clay", "thickness": 6.0, "drainage": "double"},
-        {"material": "Dense sand", "thickness": 10.0, "drainage": "double"},
-    ],
+    # A new project starts without materials or layers: the user defines them.
+    "materials": [],
+    "soil_profile": [],
     "options": {
         "stress_method": "boussinesq",
         "immediate_method": "elastic",
@@ -241,4 +197,67 @@ DEFAULT_CONFIG = {
         "s_allow": 150.0,  # allowable total settlement [mm] (0: no check)
         "distortion_allow": 500.0,  # allowable angular distortion 1 / x (0: no check)
     },
+}
+
+
+# The profile of the sample project (the command line's `example`, the tests and
+# the bundled raft example): a raft on soft clay between sands. Not a default —
+# a new project has no materials until the user defines them.
+SAMPLE_MATERIALS = [
+    {
+        **MATERIAL_DEFAULT,
+        "name": "Fill",
+        "color": "#D9B36C",
+        "gamma": 18.0,
+        "gamma_sat": 19.0,
+        "E": 10.0,
+    },
+    {
+        **MATERIAL_DEFAULT,
+        "name": "Medium dense sand",
+        "color": "#E3C98F",
+        "gamma": 18.5,
+        "gamma_sat": 20.0,
+        "E": 25.0,
+    },
+    {
+        **MATERIAL_DEFAULT,
+        "name": "Soft clay",
+        "color": "#A7B8A0",
+        "behaviour": "cohesive",
+        "gamma": 17.0,
+        "gamma_sat": 17.5,
+        "E": 6.0,
+        "nu": 0.50,
+        "Cc": 0.32,
+        "Cr": 0.05,
+        "e0": 1.05,
+        "OCR": 1.3,
+        "mv": 0.001,
+        "mv_ur": 0.00015,
+        "cv": 4.75e-4,
+        "Calpha": 0.010,
+        "Calpha_eps": 0.005,
+    },
+    {
+        **MATERIAL_DEFAULT,
+        "name": "Dense sand",
+        "color": "#C7B39A",
+        "gamma": 19.5,
+        "gamma_sat": 21.0,
+        "E": 60.0,
+        "e0": 0.5,
+    },
+]
+SAMPLE_PROFILE = [
+    {"material": "Fill", "thickness": 1.5, "drainage": "double"},
+    {"material": "Medium dense sand", "thickness": 3.5, "drainage": "double"},
+    {"material": "Soft clay", "thickness": 6.0, "drainage": "double"},
+    {"material": "Dense sand", "thickness": 10.0, "drainage": "double"},
+]
+SAMPLE_CONFIG = {
+    **DEFAULT_CONFIG,
+    "project_info": {"title": "Project: Raft on soft clay", "analyst": ""},
+    "materials": SAMPLE_MATERIALS,
+    "soil_profile": SAMPLE_PROFILE,
 }

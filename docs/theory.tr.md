@@ -96,7 +96,7 @@ Her kil alt tabakası için, her değerlendirme noktasında, σ'f = σ'v0 + Δσ
 Skempton–Bjerrum düzeltmesi uygulanmaz; bir boyutlu değer, dar bir temel altındaki aşırı konsolide kil için güvenli
 tarafta kalır.
 
-**Hacimsel sıkışma katsayılarıyla.** Kil, bunun yerine mv ve mv,ur [m²/MN] ile — bakir ve
+**Hacimsel sıkışma katsayılarıyla.** Kil, bunun yerine mv ve mv,ur [m²/kN] ile — bakir ve
 boşaltma–yeniden yükleme kollarının eğimiyle — tanımlanabilir:
 
     ε = mv,ur·(min(σ'f, σ'p) − σ'v0) + mv·max(σ'f − σ'p, 0)
@@ -114,6 +114,7 @@ ya da yayma etkisi modellenmez). E = 0 verilen kile ani oturma verilmez — yaln
 ## 7. Zaman
 
 Düzgün başlangıç aşırı boşluk suyu basıncı için Terzaghi'nin ortalama konsolidasyon derecesi,
+cv cm²/s olarak girilir ve m²/yıl'a çevrilir (1 cm²/s = 3155.76 m²/yıl).
 U = 1 − Σ 2/M²·exp(−M²Tv), M = π(2m+1)/2; Tv < 10⁻³ için √(4Tv/π); Tv = cv·t/H_dr², çift drenajda H_dr = H/2, tek drenajda H;
 H taban altındaki tabakanın kalınlığıdır. Tv(U) ikiye bölme ile bulunur, böylece U(Tv(U)) = U tam olarak sağlanır. Her kil
 tabakası bağımsız olarak konsolide olur; ortak drenaj sınırı üzerinden tabakalar arasındaki etkileşim yok sayılır. cv'si olmayan
